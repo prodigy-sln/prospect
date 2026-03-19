@@ -38,7 +38,57 @@ If you prefer manual setup:
 
 ---
 
-## Installation (Existing Projects)
+## Installation
+
+### Quick Install
+
+```bash
+# Bash (Linux/macOS/Git Bash)
+curl -fsSL https://raw.githubusercontent.com/prodigy-sln/prospect/main/install.sh | bash
+
+# PowerShell (Windows)
+irm https://raw.githubusercontent.com/prodigy-sln/prospect/main/install.ps1 | iex
+```
+
+The script detects whether you are running interactively and prompts you to choose which toolchain(s) to install (Claude Code, VS Code Copilot, or both). Shared files (`standards/`, `specs/`, `product/`) are always installed.
+
+### Script Options
+
+| Flag (bash) | Flag (PowerShell) | Description |
+|-------------|-------------------|-------------|
+| `--claude` | `-Claude` | Install Claude Code toolchain only |
+| `--copilot` | `-Copilot` | Install VS Code Copilot toolchain only |
+| `--all` | `-All` | Install both toolchains (default) |
+| `--help` | `-Help` | Show usage information |
+
+To install a specific version instead of the latest release:
+
+```bash
+# Bash — pin to a version tag
+curl -fsSL https://raw.githubusercontent.com/prodigy-sln/prospect/main/install.sh | bash -s -- v1.2.0
+
+# PowerShell — pin to a version tag
+irm https://raw.githubusercontent.com/prodigy-sln/prospect/main/install.ps1 | iex -Args v1.2.0
+```
+
+### Updating
+
+Re-run the same install command at any time to update to the latest release:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/prodigy-sln/prospect/main/install.sh | bash
+```
+
+The update process is safe for your customizations:
+
+- **Unmodified framework files** — updated silently to the new version.
+- **Files you have modified** — the new version is saved alongside as `<filename>.prospect-incoming`. Review the diff and merge manually (or ask your AI coding tool to help).
+- **Your content** — `specs/active/`, `specs/implemented/`, `product/mission.md`, and `product/roadmap.md` are never touched.
+
+After an update that produced conflicts, the script prints a summary of all `.prospect-incoming` files with the paths you need to review.
+
+<details>
+<summary>Manual Installation (fallback)</summary>
 
 Copy the Prospect framework contents to your project:
 
@@ -51,10 +101,14 @@ cp -r prospect/specs /path/to/your/project/        # Shared
 cp -r prospect/product /path/to/your/project/      # Optional
 ```
 
+</details>
+
 Your project structure should include:
 
 ```
 your-project/
+├── .prospect-version                  # Installed version tag (e.g. v1.0.0)
+├── .prospect-manifest.json            # Per-file checksums for update tracking
 ├── CLAUDE.md                          # Claude Code project instructions
 │
 ├── .claude/                           # Claude Code

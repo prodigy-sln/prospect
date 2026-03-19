@@ -1,0 +1,36 @@
+name: Release
+
+# FR-8.1: trigger on version tag push (v*)
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write   # required to create GitHub Releases
+
+jobs:
+  build-and-release:
+    name: Build artifact and publish release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history for auto-generated release notes
+
+      - name: Build release artifact
+        # FR-8.2: produce .tar.gz and .zip containing all distributable files
+        run: |
+          bash scripts/build-release.sh "${{ github.ref_name }}"
+
+      - name: Create GitHub Release
+        # FR-8.5: create release with artifact attached and auto-generated notes
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            prospect-${{ github.ref_name }}.tar.gz
+            prospect-${{ github.ref_name }}.zip
