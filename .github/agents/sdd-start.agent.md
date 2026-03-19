@@ -165,7 +165,7 @@ Read `specs/_templates/spec.template.md` and fill all sections:
 - **Out of Scope**: Explicit exclusions (CRITICAL for preventing scope creep)
 - **Dependencies**: Blocking and external
 - **Assumptions**: Document assumptions made
-- **Clarifications**: Include Q&A from shaping
+- **Clarifications**: Include Q&A from shaping and discussion findings (if discuss phase was run)
 
 ### Quality Checks
 
@@ -194,7 +194,8 @@ Read `specs/_templates/spec.template.md` and fill all sections:
 ### Next Steps
 1. Review the spec
 2. Add any missing visuals
-3. When ready, proceed to create tasks
+3. (Optional) Run: `/sdd.architect` to capture the architecture plan before tasks
+4. When ready, proceed to create tasks
 ```
 
 Tell user to review spec before proceeding.

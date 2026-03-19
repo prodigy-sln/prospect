@@ -1,8 +1,7 @@
 ---
 name: sdd-specify
 description: "Phase 3: Generate a complete specification document from gathered requirements"
-argument-hint: ""
-disable-model-invocation: true
+argument-hint: "[specification folder name, e.g. '2024-06-01-new-login-system']"
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 
@@ -113,7 +112,8 @@ Write to `specs/active/[folder]/spec.md`
 ### Next Steps
 1. Review the spec
 2. Resolve any open questions
-3. When ready, run: `/sdd-tasks`
+3. (Optional) Run: `/sdd-architect` to produce the architecture plan before tasks
+4. When ready, run: `/sdd-tasks`
 ```
 
 Tell user to review spec before proceeding.

@@ -85,7 +85,19 @@ specs/implemented/[folder-name]/
 
 ---
 
-## Step 4: Update Jira (if applicable)
+## Step 4: Log Outstanding Issues
+
+If any outstanding issues were identified during validation (even if non-blocking), create a separate issue in the available issue tracker for each item before proceeding. Include:
+- Requirement/section reference
+- Severity and current impact
+- Repro steps or context
+- Link to spec folder and validation report
+
+If no issue tracker is available, list the outstanding items in the completion summary instead.
+
+---
+
+## Step 5: Update Jira (if applicable)
 
 If spec has `jira:` in frontmatter:
 
@@ -111,7 +123,15 @@ If spec has `jira:` in frontmatter:
 
 ---
 
-## Step 5: Generate Completion Summary
+## Step 6: Update Architecture Decision Records (if applicable)
+
+If any architectural decisions were made during implementation that differ from the original spec, update the relevant ADRs in `docs/technical/architecture/decisions.md` to reflect the final implemented design.
+Read `specs/implemented/[folder-name]/architecture.md` if it exists for reference on what was implemented vs. originally specified.
+Follow the existing documentation pattern and adapt where necessary to capture the final design decisions and rationale.
+
+---
+
+## Step 7: Generate Completion Summary
 
 ```markdown
 # Completion Summary: [Feature Title]
@@ -159,7 +179,7 @@ If spec has `jira:` in frontmatter:
 
 ---
 
-## Step 6: Final Git Status
+## Step 8: Final Git Status
 
 Show what's ready:
 
@@ -167,6 +187,16 @@ Show what's ready:
 git status
 git log --oneline -10
 ```
+
+Ensure all changes are committed. When committing the move to implemented, make sure to also commit the removed files, i.e. make the "move" complete and not only commit the new files in implemented.
+
+---
+
+## Step 9: Create Pull Request
+
+Create a pull request from `[branch-name]` to `main` with the following details:
+- Title: "Complete Feature: [Feature Title]"
+- Description: Include the completion summary generated in Step 7 and reference the spec folder and any outstanding issues.
 
 ---
 
@@ -194,15 +224,8 @@ git log --oneline -10
 ### Next Steps
 
 1. **Create Pull Request**
-   ```bash
-   gh pr create --title "[Feature Title]" --body "..."
-   ```
-
-2. **Code Review** - Have team review
-
+2. **Code Review**
 3. **Merge** - Merge to main when approved
-
-4. **Deploy** - Follow deployment process
 ```
 
 ---
@@ -218,7 +241,7 @@ git log --oneline -10
 ✓ Phase 6: Validate - Implementation verified
 ✓ Phase 7: Complete - Feature finalized
 
-→ Ready for: Pull Request → Review → Merge → Deploy
+→ Ready for: Pull Request → Review → Merge
 ```
 
 ---

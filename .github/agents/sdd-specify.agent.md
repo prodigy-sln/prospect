@@ -212,7 +212,8 @@ Write to `specs/active/[folder]/spec.md`
 ### Next Steps
 1. Review the spec
 2. Resolve any open questions
-3. Proceed to create task breakdown
+3. (Optional) Run: `/sdd.architect` to produce the architecture plan before tasks
+4. Proceed to create task breakdown
 ```
 
 Tell user to review spec before proceeding.

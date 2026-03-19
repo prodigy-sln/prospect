@@ -2,7 +2,6 @@
 name: sdd-validate
 description: "Phase 6: Verify implementation matches the specification — checks requirements, tests, quality, and scope"
 argument-hint: ""
-disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task
 ---
 
@@ -28,11 +27,11 @@ Read these files:
 
 ---
 
-## Step 2: Requirements Verification (Delegate to Explore subagent)
+## Step 2: Requirements Verification (Delegate to sdd-verifier subagent)
 
-Use the **Task tool** with `subagent_type: Explore` to verify requirements across the codebase. This preserves context on the main conversation.
+Use the **Task tool** with `subagent_type: "sdd-verifier"` to verify requirements across the codebase. Do not parallelize verification with report writing—wait for the verifier output before drafting the validation report.
 
-### Launch Explore Subagent
+### Launch Verifier Subagent
 
 Extract all FR-X.X requirements from spec.md, then delegate:
 
@@ -62,7 +61,7 @@ Finally, check for scope creep:
 
 ### Process Verification Report
 
-Use the Explore subagent's findings for the validation report in Step 6.
+Use the sdd-verifier subagent's findings for the validation report in Step 7.
 
 ---
 
@@ -81,7 +80,25 @@ Verify:
 
 ---
 
-## Step 4: Code Quality Verification
+## Step 4: Code Review (Delegate to sdd-review subagent)
+
+Use the **Task tool** with `subagent_type: "sdd-review"` to perform a code review. Provide spec, tasks, standards, and the latest test/coverage context.
+
+Prompt to send:
+
+```
+Conduct a code review for the feature against spec.md, tasks.md, and standards.
+Assess correctness, architecture alignment, code quality, testing completeness, security, performance, and maintainability.
+Report findings with severity (blocker/major/minor/info), file:line locations, requirement IDs impacted (if any), and concrete recommendations.
+Highlight positives briefly (what's working well).
+Flag any refactorings needed.
+```
+
+Use the sdd-review findings in the validation report (Steps 5-7).
+
+---
+
+## Step 5: Code Quality Verification
 
 Check against `standards/global/code-quality.md`:
 
@@ -94,9 +111,9 @@ Check against `standards/global/code-quality.md`:
 
 ---
 
-## Step 5: Scope Verification
+## Step 6: Scope Verification
 
-Scope verification is included in the Explore subagent delegation from Step 2. Review the out-of-scope and scope creep sections from the subagent's report.
+Scope verification is included in the sdd-verifier subagent delegation from Step 2. Review the out-of-scope and scope creep sections from the subagent's report.
 
 Verify from the report:
 - [ ] All out-of-scope items confirmed NOT implemented
@@ -106,7 +123,7 @@ Verify from the report:
 
 ---
 
-## Step 6: Generate Validation Report
+## Step 7: Generate Validation Report
 
 Write to `specs/active/[folder]/validation-report.md`:
 
@@ -122,6 +139,7 @@ Write to `specs/active/[folder]/validation-report.md`:
 |----------|--------|---------|
 | Requirements | [PASS/FAIL] | [X]/[Y] implemented |
 | Tests | [PASS/FAIL] | [X] passing, [Y]% coverage |
+| Code Review | [PASS/FAIL] | [issues found or "No issues"] |
 | Code Quality | [PASS/FAIL] | [issues found or "No issues"] |
 | Scope Control | [PASS/FAIL] | [violations found or "No violations"] |
 
@@ -133,6 +151,9 @@ Write to `specs/active/[folder]/validation-report.md`:
 ## Test Results
 [Test command, results, coverage breakdown]
 
+## Code Review
+[Summary of findings from sdd-review: blockers/majors/minors, positives, refactoring recommendations]
+
 ## Code Quality Check
 [Checklist results and any issues]
 
@@ -143,11 +164,18 @@ Write to `specs/active/[folder]/validation-report.md`:
 - [ ] All requirements implemented
 - [ ] All tests passing
 - [ ] Coverage thresholds met
+- [ ] Code review issues addressed
 - [ ] Code quality standards met
 - [ ] No scope violations
 
 **Ready for completion**: [YES / NO]
 ```
+
+---
+
+## Step 8: Commit the documents
+
+Ensure the `specs/active/[folder]/validation-report.md` and `specs/active/[folder]/code-review.md` files are committed to the repository. If any issues were found, ensure they are documented in the report and that the report is updated after fixes are made.
 
 ---
 
@@ -163,6 +191,7 @@ Write to `specs/active/[folder]/validation-report.md`:
 |-------|--------|
 | Requirements | [X]/[Y] implemented |
 | Tests | [X] passing, [Y]% coverage |
+| Code Review | [PASS/issues found] |
 | Code Quality | [PASS/issues found] |
 | Scope | [No violations/violations found] |
 

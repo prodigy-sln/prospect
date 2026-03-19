@@ -2,7 +2,6 @@
 name: sdd-implement
 description: "Phase 5: Orchestrate TDD implementation using subagents for Red-Green-Refactor cycle"
 argument-hint: ""
-disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task
 ---
 
@@ -23,6 +22,7 @@ Orchestrate the implementation process using specialized subagents for each TDD 
 
 - Spec: `specs/active/[folder]/spec.md`
 - Tasks: `specs/active/[folder]/tasks.md`
+- Architecture plan (if available): `specs/active/[folder]/architecture.md`
 - User has reviewed and approved both
 
 ---
@@ -35,6 +35,7 @@ Read these files before starting:
 2. **Task Breakdown**: `specs/active/[folder]/tasks.md`
 3. **Standards**: `standards/global/code-quality.md`, `standards/global/testing.md`
 4. **Project Instructions**: `CLAUDE.md` (if exists)
+5. **Architecture Plan (optional)**: `specs/active/[folder]/architecture.md`
 
 ---
 
@@ -63,15 +64,19 @@ FOR EACH PHASE:
 
     2. Delegate to sdd-test-writer subagent (RED)
        - Pass: spec path, task details, standards path, requirement ID
+       - If available: architecture plan path for interfaces/contracts
        - Receive: test files, test names, confirmation
 
     3. Delegate to sdd-implementer subagent (GREEN)
        - Pass: spec path, task details, standards path, test output
+       - If available: architecture plan path for interfaces/contracts
        - Receive: implementation files, confirmation
 
     4. Delegate to sdd-refactorer subagent (REFACTOR)
+       - This phase is **required** after every GREEN implementation. If no refactor is needed, the refactorer must explicitly confirm "no changes" while reviewing for cleanliness and standards.
        - Pass: spec path, task details, standards path, implementation files
-       - Receive: refactoring summary, confirmation
+       - If available: architecture plan path for interfaces/contracts
+       - Receive: refactoring summary (or explicit "no changes"), confirmation
 
     5. Mark task complete in tasks.md
        - Update: [ ] → [x]
@@ -81,6 +86,7 @@ FOR EACH PHASE:
 
     6. Delegate to sdd-verifier subagent
        - Pass: spec path, phase name, completed tasks, coverage target
+      - If available: architecture plan path for scope validation
        - Receive: test results, coverage, issues
 
     7. Handle verification result
@@ -94,6 +100,8 @@ FOR EACH PHASE:
 
 Use the Task tool to delegate to each subagent. Provide full context in the prompt:
 
+**Parallel delegation rule:** if tasks are run in parallel, spawn one agent per task. Do not bundle multiple tasks into a single agent invocation, and never combine different TDD phases (RED tests vs GREEN implementation) in the same agent call.
+
 ### Test Writer (RED)
 ```
 Delegate to sdd-test-writer subagent:
@@ -106,6 +114,11 @@ Context:
 
 Write failing tests for this task.
 ```
+
+If the tests do NOT fail, check why. The implementation should be outstanding. If the test does not fail, check:
+- Does it really test the new requirement?
+- Is the test meaningful?
+- Is it possible the requirement is already satisfied by existing code? If so, this may indicate a spec issue (e.g., missing constraints or edge cases) rather than an implementation issue. Flag for review.
 
 ### Implementer (GREEN)
 ```
@@ -135,7 +148,7 @@ Refactor while keeping tests green.
 
 ### Verifier (PHASE END)
 ```
-Delegate to sdd-verifier subagent:
+Delegate to sdd-verifier and sdd-review subagents in parallel:
 
 Context:
 - Spec: [path to spec.md]
@@ -155,6 +168,7 @@ Before allowing ANY implementation:
 1. Is this task in tasks.md?
 2. Does this task relate to a spec requirement (FR-X.X)?
 3. Is this NOT in the "Out of Scope" section?
+4. If architecture.md exists: does the planned approach align with the decisions, interfaces, and data contracts?
 
 **If NO to any → Do not implement. Note it for future work.**
 
@@ -173,6 +187,8 @@ The spec's "Out of Scope" section is **binding**:
 - [x] T004 [TEST] Write schema tests ✓ 2026-01-29
       └── Tests: 3 added, all passing
 ```
+
+**Preserve tasks.md content:** Never delete or replace task text. Only append status markers (e.g., `[x]`, dates, brief outcomes) and keep the original descriptions and acceptance details intact.
 
 ### Report After Each Phase
 

@@ -27,6 +27,7 @@ Generate TDD-ordered tasks from the specification.
 ## Prerequisites
 
 - `specs/active/[folder]/spec.md` is complete
+- If present, `specs/active/[folder]/architecture.md` is available for reference
 - Open questions resolved
 - Out of scope defined
 
@@ -50,11 +51,13 @@ Read these files:
    - TDD requirements
    - Coverage targets
 
+4. **Architecture Plan (optional)**: `specs/active/[folder]/architecture.md`
+
 ---
 
 ## Step 2: Analyze Requirements
 
-Extract from spec:
+Extract from spec (and architecture plan if available):
 
 1. **Data Layer** (if applicable): New entities, migrations, validations
 2. **Backend/API Layer** (if applicable): Endpoints, services, auth
@@ -156,6 +159,7 @@ Within each phase, tests come FIRST:
 - Write error scenario tests
 - Run complete test suite
 - Verify coverage meets threshold
+- Ensure there are zero warnings and errors, if not they need to be fixed
 
 **Phase 6: Polish & Documentation**
 - Self-review against code quality standards

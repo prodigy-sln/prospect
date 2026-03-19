@@ -2,7 +2,6 @@
 name: sdd-start
 description: Start a new Prospect spec — combines phases 1-3 (Initiate, Shape, Specify) into a single command
 argument-hint: "[feature description or JIRA-KEY]"
-disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task
 ---
 
@@ -23,6 +22,7 @@ User provides: $ARGUMENTS
 2. **Jira MCP Detection**:
    Try fetching Jira resources. If MCP tools are available, use them.
    If unavailable and input is a ticket ID, ask user for a description instead.
+   If ticket is found, move to in progress and assign to current user.
 
 3. **Graceful degradation**:
    - If Jira unavailable AND input is ticket ID → **ASK user**: "Jira unavailable. Please describe this feature so I can proceed."
@@ -125,6 +125,26 @@ Frame with sensible defaults based on codebase findings:
 
 ---
 
+## Phase 2.5: Discuss (Optional — Agent Team)
+
+After shaping is complete and requirements.md is saved, invoke `/sdd-discuss` to get multi-perspective feedback before writing the spec.
+
+This spawns a stakeholder agent team (always including an Architect, plus 1-2 additional personas relevant to the feature) that discusses the feature plan, answers open questions, and surfaces concerns. Their findings are appended to `requirements.md` under `## Discussion Findings`.
+
+**When to invoke**: Always offer this to the user. It's especially valuable when:
+- There are unresolved open questions from shaping
+- The feature touches multiple systems or stakeholder concerns
+- Trade-offs between competing priorities are non-obvious
+- The user wants a sanity check before committing to a spec
+
+**When to skip**: The user explicitly declines, or the feature is trivially scoped.
+
+Ask the user: *"Would you like me to run /sdd-discuss to get stakeholder feedback (Architect + relevant personas) before I write the spec?"*
+
+If yes, invoke the `sdd-discuss` skill via the Skill tool. After it completes, continue to Phase 3 below — the Specify phase will incorporate the discussion findings from `requirements.md`.
+
+---
+
 ## Phase 3: Specify
 
 ### Generate spec.md
@@ -141,7 +161,7 @@ Read `specs/_templates/spec.template.md` and fill all sections:
 - **Out of Scope**: Explicit exclusions (CRITICAL for preventing scope creep)
 - **Dependencies**: Blocking and external
 - **Assumptions**: Document assumptions made
-- **Clarifications**: Include Q&A from shaping
+- **Clarifications**: Include Q&A from shaping and discussion findings (if `/sdd-discuss` was run)
 
 ### Quality Checks
 
@@ -169,7 +189,8 @@ Read `specs/_templates/spec.template.md` and fill all sections:
 ### Next Steps
 1. Review the spec
 2. Add any missing visuals
-3. When ready, run: `/sdd-tasks`
+3. (Optional) Run: `/sdd-architect` to capture the architecture plan before tasks
+4. When ready, run: `/sdd-tasks`
 ```
 
 Tell user to review spec before proceeding.

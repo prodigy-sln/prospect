@@ -1,8 +1,7 @@
 ---
 name: sdd-tasks
 description: "Phase 4: Create TDD-ordered task breakdown from the specification"
-argument-hint: ""
-disable-model-invocation: true
+argument-hint: "[specification folder name, e.g. '2024-06-01-new-login-system']"
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 
@@ -13,6 +12,7 @@ Generate TDD-ordered tasks from the specification.
 ## Prerequisites
 
 - `specs/active/[folder]/spec.md` is complete
+- If present, `specs/active/[folder]/architecture.md` is available for reference
 - Open questions resolved
 - Out of scope defined
 
@@ -25,12 +25,13 @@ Read these files:
 1. **Specification**: `specs/active/[folder]/spec.md`
 2. **Task Template**: `specs/_templates/tasks.template.md`
 3. **Testing Standards**: `standards/global/testing.md`
+4. **Architecture Plan (optional)**: `specs/active/[folder]/architecture.md`
 
 ---
 
 ## Step 2: Analyze Requirements
 
-Extract from spec:
+Extract from spec (and architecture plan if available):
 
 1. **Data Layer** (if applicable): New entities, migrations, validations
 2. **Backend/API Layer** (if applicable): Endpoints, services, auth
@@ -94,6 +95,7 @@ Within each phase, tests come FIRST:
 
 **Phase 5: Integration & E2E**
 - Write E2E tests, run complete suite, verify coverage
+- Ensure there are zero warnings and errors, if not they need to be fixed
 
 **Phase 6: Polish & Documentation**
 - Self-review, documentation, final cleanup

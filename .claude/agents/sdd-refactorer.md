@@ -13,6 +13,7 @@ Improve code quality while keeping all tests passing.
 
 You receive from the implement orchestrator:
 - **spec.md**: Full specification with requirements
+- **architecture.md** (if available): Interfaces, data contracts, decisions
 - **tasks.md**: Task breakdown with current task highlighted
 - **standards**: Project coding and testing standards
 - **current_task**: The specific task that was implemented

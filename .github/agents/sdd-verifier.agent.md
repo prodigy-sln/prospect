@@ -19,6 +19,7 @@ Run full test suite and verify phase completion against spec requirements.
 
 You receive from the main implement agent:
 - **spec.md**: Full specification with requirements and coverage targets
+- **architecture.md** (if available): Interfaces, data contracts, decisions
 - **tasks.md**: Task breakdown with completed tasks marked
 - **standards**: Project testing standards
 - **phase**: The phase that was just completed (e.g., "Database", "Backend")

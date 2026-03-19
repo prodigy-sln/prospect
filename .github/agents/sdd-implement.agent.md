@@ -33,6 +33,7 @@ Orchestrate the implementation process using specialized subagents for each TDD 
 
 - Spec: `specs/active/[folder]/spec.md`
 - Tasks: `specs/active/[folder]/tasks.md`
+- Architecture plan (if available): `specs/active/[folder]/architecture.md`
 - User has reviewed and approved both
 
 ---
@@ -57,6 +58,8 @@ Read these files before starting:
 
 4. **Project Instructions** (if exists):
    - `.github/copilot-instructions.md`
+
+5. **Architecture Plan (optional)**: `specs/active/[folder]/architecture.md`
 
 ---
 
@@ -87,20 +90,24 @@ Phases are processed sequentially (typically: Database → Backend → Frontend 
 │                                                                 │
 │    2. Invoke @sdd-test-writer (RED)                             │
 │       ├── Pass: spec, tasks, standards, current_task            │
+│       │   If available: architecture plan for interfaces        │
 │       ├── Wait for completion                                   │
 │       └── Receive: test files, test names, confirmation         │
 │                                                                 │
 │    3. Invoke @sdd-implementer (GREEN)                           │
 │       ├── Pass: spec, tasks, standards, current_task,           │
 │       │         test_output from step 2                         │
+│       │   If available: architecture plan for interfaces        │
 │       ├── Wait for completion                                   │
 │       └── Receive: implementation files, confirmation           │
 │                                                                 │
-│    4. Invoke @sdd-refactorer (REFACTOR)                         │
+│    4. Invoke @sdd-refactorer (REFACTOR) — REQUIRED              │
 │       ├── Pass: spec, tasks, standards, current_task,           │
 │       │         implementation_output from step 3               │
+│       │   If available: architecture plan for interfaces        │
 │       ├── Wait for completion                                   │
-│       └── Receive: refactoring summary, confirmation            │
+│       └── Receive: refactoring summary (or "no changes"),       │
+│           confirmation                                          │
 │                                                                 │
 │    5. Mark task complete in tasks.md                            │
 │       - Update: [ ] → [x]                                       │
@@ -109,10 +116,11 @@ Phases are processed sequentially (typically: Database → Backend → Frontend 
 │  After all tasks in phase complete:                             │
 │  ─────────────────────────────────                              │
 │                                                                 │
-│    6. Invoke @sdd-verifier                                      │
+│    6. Invoke @sdd-verifier and @sdd-review in parallel           │
 │       ├── Pass: spec, tasks, standards, phase_name              │
+│       │   If available: architecture plan for scope validation  │
 │       ├── Wait for completion                                   │
-│       └── Receive: test results, coverage, issues               │
+│       └── Receive: test results, coverage, review, issues       │
 │                                                                 │
 │    7. Handle verification result                                │
 │       - If PASSED → continue to next phase                      │
@@ -138,6 +146,13 @@ Context:
 
 Write failing tests for this task.
 ```
+
+If the tests do NOT fail, check why:
+- Does it really test the new requirement?
+- Is the test meaningful?
+- Is it possible the requirement is already satisfied by existing code? If so, flag for review.
+
+**Parallel delegation rule:** if tasks are run in parallel, spawn one agent per task. Do not bundle multiple tasks into a single agent invocation, and never combine different TDD phases (RED tests vs GREEN implementation) in the same agent call.
 
 ### Invoking Implementer (GREEN)
 
@@ -201,6 +216,7 @@ Before allowing ANY implementation:
 1. Is this task in tasks.md?
 2. Does this task relate to a spec requirement (FR-X.X)?
 3. Is this NOT in the "Out of Scope" section?
+4. If architecture.md exists: does the planned approach align with the decisions, interfaces, and data contracts?
 
 **If NO to any → Do not implement. Note it for future work.**
 
@@ -222,6 +238,8 @@ The spec's "Out of Scope" section is **binding**:
 - [x] T005 [IMPL] Create migration ✓ 2026-01-29
       └── Files: migrations/001_create_users.sql
 ```
+
+**Preserve tasks.md content:** Never delete or replace task text. Only append status markers (e.g., `[x]`, dates, brief outcomes) and keep the original descriptions and acceptance details intact.
 
 ### Report After Each Phase
 

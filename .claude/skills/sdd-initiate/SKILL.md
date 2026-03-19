@@ -2,7 +2,6 @@
 name: sdd-initiate
 description: "Phase 1: Create feature branch and spec folder structure"
 argument-hint: "[feature description or JIRA-KEY]"
-disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 

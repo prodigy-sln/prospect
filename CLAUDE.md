@@ -7,7 +7,7 @@ This project uses the **Prospect** framework for **Spec-Driven Development (SDD)
 All features follow this workflow:
 
 ```
-/sdd-start [feature]  →  /sdd-tasks  →  /sdd-implement  →  /sdd-validate  →  /sdd-complete
+/sdd-start [feature]  →  (/sdd-architect)  →  /sdd-tasks  →  /sdd-implement  →  /sdd-validate  →  /sdd-complete
 ```
 
 ## Key Principles
@@ -35,7 +35,13 @@ PROJECT SETUP (Choose One)
 
 FEATURE DEVELOPMENT
   /sdd-start [desc]  — Phases 1-3: branch + requirements + specification
+      Phase 1: Initiate (branch + folder)
+      Phase 2: Shape (codebase discovery + questions)
+      ► /sdd-discuss  — (Optional) Stakeholder agent team discussion
+      Phase 3: Specify (writes spec.md, incorporating discussion)
       ↓ [User reviews spec]
+  /sdd-architect     — (Optional) Architecture planning before tasks
+      ↓ [User reviews architecture]
   /sdd-tasks         — Phase 4: TDD-ordered task breakdown
       ↓ [User reviews tasks]
   /sdd-implement     — Phase 5: TDD implementation (Red-Green-Refactor)
@@ -46,6 +52,9 @@ FEATURE DEVELOPMENT
 
 GRANULAR CONTROL (instead of /sdd-start)
   /sdd-initiate → /sdd-shape → /sdd-specify
+
+ISSUE-DRIVEN (unguided)
+  /sdd-start-issue [issue-id]  — Full pipeline from issue to implementation
 ```
 
 ## Specs Location

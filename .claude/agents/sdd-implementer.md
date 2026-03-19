@@ -13,6 +13,7 @@ Write minimal code to make the failing tests pass.
 
 You receive from the implement orchestrator:
 - **spec.md**: Full specification with requirements
+- **architecture.md** (if available): Interfaces, data contracts, decisions
 - **tasks.md**: Task breakdown with current task highlighted
 - **standards**: Project coding and testing standards
 - **current_task**: The specific task to implement
@@ -29,7 +30,7 @@ Read the test files created by test-writer:
 
 ### 2. Check Existing Code
 
-From spec.md "Existing Code to Leverage" section:
+From spec.md "Existing Code to Leverage" section and architecture.md decisions/contracts (if present):
 - Find similar implementations to reference
 - Identify patterns to follow
 - Locate shared utilities to reuse
@@ -47,8 +48,9 @@ Search codebase for related code using Grep and Glob.
 4. Don't add "nice to have" code
 ```
 
-**Follow Standards:**
+**Follow Standards and Plan:**
 - Read standards/global/code-quality.md
+- If architecture.md exists, follow its decisions, interfaces, and data shapes unless the spec/user overrides
 - Use project naming conventions
 - Follow established patterns
 

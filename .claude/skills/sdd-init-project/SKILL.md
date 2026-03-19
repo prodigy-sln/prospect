@@ -90,7 +90,7 @@ Ask the user these questions (adapt based on answers):
 
 9. **External Integrations**:
    "Will you use any of these? (select all that apply)
-   - Jira/Atlassian (for ticket tracking)
+   - Jira (for ticket tracking)
    - GitHub (for source control)
    - CI/CD pipeline
    - Other: [specify]"

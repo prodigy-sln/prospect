@@ -122,6 +122,8 @@ Report back to the orchestrator:
 - Cover happy path and edge cases from spec
 - Use meaningful test names that describe expected behavior
 - Mock external dependencies appropriately
+- Apply the user-value filter: "If this test fails, does it tell me something a user would care about?" Keep it if yes. If it would only fail because of renaming a class or shuffling a container, drop or move it up to integration/E2E.
+- For UI: unit-test components with conditional logic, derived state, or accessibility concerns. For purely presentational components, prefer integration/E2E coverage instead of unit churn.
 
 **DON'T:**
 - Write tests that pass immediately

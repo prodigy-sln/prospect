@@ -73,7 +73,18 @@ Verify:
 
 ---
 
-## Step 4: Code Quality Verification
+## Step 4: Code Review
+
+Invoke `@sdd-review` to perform a code review. Provide spec, tasks, standards, and the latest test/coverage context.
+
+Assess correctness, architecture alignment, code quality, testing completeness, security, performance, and maintainability.
+Report findings with severity (blocker/major/minor/info), file:line locations, requirement IDs impacted (if any), and concrete recommendations.
+
+Use the sdd-review findings in the validation report (Steps 5-7).
+
+---
+
+## Step 5: Code Quality Verification
 
 Check against `standards/global/code-quality.md`:
 
@@ -88,7 +99,7 @@ Check against `standards/global/code-quality.md`:
 
 ---
 
-## Step 5: Scope Verification (CRITICAL)
+## Step 6: Scope Verification (CRITICAL)
 
 Check the "Out of Scope" section from spec:
 
@@ -105,7 +116,7 @@ For each out-of-scope item:
 
 ---
 
-## Step 6: Generate Validation Report
+## Step 7: Generate Validation Report
 
 Write to `specs/active/[folder]/validation-report.md`:
 
@@ -121,6 +132,7 @@ Write to `specs/active/[folder]/validation-report.md`:
 |----------|--------|---------|
 | Requirements | [PASS/FAIL] | [X]/[Y] implemented |
 | Tests | [PASS/FAIL] | [X] passing, [Y]% coverage |
+| Code Review | [PASS/FAIL] | [issues found or "No issues"] |
 | Code Quality | [PASS/FAIL] | [issues found or "No issues"] |
 | Scope Control | [PASS/FAIL] | [violations found or "No violations"] |
 
@@ -144,6 +156,9 @@ Write to `specs/active/[folder]/validation-report.md`:
 | FR-X.X | [desc] | [why] |
 
 ---
+
+## Code Review
+[Summary of findings from sdd-review: blockers/majors/minors, positives, refactoring recommendations]
 
 ## Test Results
 
@@ -210,6 +225,7 @@ Write to `specs/active/[folder]/validation-report.md`:
 - [ ] All requirements implemented
 - [ ] All tests passing
 - [ ] Coverage thresholds met
+- [ ] Code review issues addressed
 - [ ] Code quality standards met
 - [ ] No scope violations
 
@@ -230,11 +246,18 @@ Write to `specs/active/[folder]/validation-report.md`:
 |-------|--------|
 | Requirements | [X]/[Y] implemented |
 | Tests | [X] passing, [Y]% coverage |
+| Code Review | [PASS/issues found] |
 | Code Quality | [PASS/issues found] |
 | Scope | [No violations/violations found] |
 
 ### Overall: [PASS / NEEDS FIXES]
 ```
+
+## Step 8: Commit the documents
+
+Ensure `specs/active/[folder]/validation-report.md` and `specs/active/[folder]/code-review.md` are committed.
+
+---
 
 **If PASS**: Ready for completion.
 

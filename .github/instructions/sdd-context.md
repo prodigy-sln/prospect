@@ -33,6 +33,11 @@ This file provides reference documentation for the Prospect SDD workflow. The ac
 │              │                                                  │
 │              ▼ [User reviews spec]                              │
 │                                                                 │
+│  /sdd.architect (or @sdd-architect) - Optional                  │
+│      └── Architecture planning before task breakdown             │
+│              │                                                  │
+│              ▼ [User reviews architecture]                      │
+│                                                                 │
 │  /sdd.tasks (or @sdd-tasks) - Phase 4                           │
 │      └── Creates TDD-ordered task breakdown                     │
 │              │                                                  │
@@ -85,7 +90,9 @@ project/
 │   │       ├── spec.md
 │   │       ├── tasks.md
 │   │       ├── requirements.md
+│   │       ├── architecture.md      # Optional, from /sdd.architect
 │   │       ├── validation-report.md
+│   │       ├── code-review.md       # From validation phase
 │   │       └── visuals/
 │   │
 │   ├── implemented/        # Completed specs

@@ -1,8 +1,7 @@
 ---
 name: sdd-shape
 description: "Phase 2: Collaborative requirements gathering through targeted questions and codebase discovery"
-argument-hint: ""
-disable-model-invocation: true
+argument-hint: "[feature-name]"
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task
 ---
 

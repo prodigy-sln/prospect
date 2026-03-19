@@ -7,7 +7,7 @@ This project uses the **Prospect** framework for **Spec-Driven Development (SDD)
 All features follow this workflow:
 
 ```
-/sdd.start [feature]  →  /sdd.tasks  →  /sdd.implement  →  /sdd.validate  →  /sdd.complete
+/sdd.start [feature]  →  (/sdd.architect)  →  /sdd.tasks  →  /sdd.implement  →  /sdd.validate  →  /sdd.complete
 ```
 
 ## Key Principles
