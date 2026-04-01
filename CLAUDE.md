@@ -33,6 +33,10 @@ PROJECT SETUP (Choose One)
   /sdd-init-project  — New project: Q&A → generate structure + standards
   /sdd-onboard       — Existing project: analyze codebase → generate standards
 
+REQUIREMENTS CLARIFICATION (before /sdd-start)
+  /sdd-clarify [issue-key]     — Gather requirements via issue tracker comments
+                                  Works with Atlassian/Linear/Notion MCP or user interaction
+
 FEATURE DEVELOPMENT
   /sdd-start [desc]  — Phases 1-3: branch + requirements + specification
       Phase 1: Initiate (branch + folder)
@@ -46,7 +50,7 @@ FEATURE DEVELOPMENT
       ↓ [User reviews tasks]
   /sdd-implement     — Phase 5: TDD implementation (Red-Green-Refactor)
       ↓
-  /sdd-validate      — Phase 6: verify implementation vs spec
+  /sdd-validate      — Phase 6: verify implementation vs spec (parallel reviewers)
       ↓
   /sdd-complete      — Phase 7: finalize, move spec to implemented/
 

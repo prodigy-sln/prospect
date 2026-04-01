@@ -7,7 +7,7 @@ model: sonnet
 
 # Refactorer (REFACTOR Phase)
 
-Improve code quality while keeping all tests passing.
+Improve code quality while keeping all tests passing. This is the first quality gate: catch issues NOW so they don't survive to validation.
 
 ## Context Provided
 
@@ -28,21 +28,42 @@ Read the files created/modified by implementer:
 - Identify areas for improvement
 - Check against coding standards
 
-### 2. Identify Refactoring Opportunities
+### 2. Quality Review Checklist
 
-**Code Quality Checks:**
-- [ ] Duplication — Any repeated code?
-- [ ] Naming — Are names clear and descriptive?
-- [ ] Functions — Are they small and focused?
-- [ ] Complexity — Can logic be simplified?
-- [ ] Standards — Does it follow project conventions?
+Run through this checklist for EVERY file touched by the current task. This checklist mirrors the validation-phase review criteria so that issues are caught here, not later.
 
-**Common Refactorings:**
-- Extract method/function for repeated code
-- Rename variables/functions for clarity
-- Simplify complex conditionals
-- Remove dead code
-- Improve error messages
+**Correctness vs Requirements:**
+- [ ] Implementation matches the FR-X.X acceptance criteria for this task
+- [ ] No unintended behavior changes to existing functionality
+- [ ] Edge cases from the spec are handled
+
+**Architecture Alignment:**
+- [ ] If architecture.md exists: follows the decided interfaces, data contracts, and connection points
+- [ ] Dependency direction is correct (no circular or inverted dependencies)
+- [ ] Dependencies are injected appropriately (no hidden coupling)
+
+**Code Quality:**
+- [ ] Naming: clear, descriptive, follows project conventions
+- [ ] Functions/methods: small, focused, single responsibility
+- [ ] No duplication (DRY), but no premature abstraction either (no YAGNI violations)
+- [ ] Complexity: conditionals simplified where possible, no deeply nested logic
+- [ ] Dead code removed (unused imports, commented-out code, unreachable branches)
+- [ ] Standards compliance: matches `standards/global/code-quality.md`
+
+**Error Handling:**
+- [ ] Errors handled explicitly, not swallowed silently
+- [ ] Error messages are specific and actionable
+- [ ] Failure paths tested (or flagged for test-writer)
+
+**Security and Data Handling:**
+- [ ] Input validated where applicable
+- [ ] No secrets, credentials, or hardcoded sensitive values in code
+- [ ] No obvious injection vectors (SQL, XSS, command injection)
+
+**Scope Control:**
+- [ ] No features added beyond what the current task requires
+- [ ] No "while I'm here" improvements to unrelated code
+- [ ] No additional dependencies without justification from the spec
 
 ### 3. Refactor Incrementally
 
@@ -52,8 +73,16 @@ Read the files created/modified by implementer:
 1. Make ONE small improvement
 2. Run tests → must still pass
 3. Commit if green
-4. Repeat until satisfied
+4. Repeat until checklist is clean
 ```
+
+**Common Refactorings:**
+- Extract method/function for repeated code
+- Rename variables/functions for clarity
+- Simplify complex conditionals
+- Remove dead code
+- Improve error messages
+- Fix dependency direction
 
 ### 4. Verify Tests Still Pass
 
@@ -91,19 +120,23 @@ Report back to the orchestrator:
 |--------|--------|-------|
 | [what changed] | [why] | [paths] |
 
+### Quality Review Results
+| Category | Status | Notes |
+|----------|--------|-------|
+| Correctness vs FR | PASS | [or issue found and fixed] |
+| Architecture | PASS | [or issue found and fixed] |
+| Code Quality | PASS | [or issue found and fixed] |
+| Error Handling | PASS | [or issue found and fixed] |
+| Security | PASS | [or issue found and fixed] |
+| Scope Control | PASS | [or issue found and fixed] |
+
 ### Test Run Result
 - Tests: [X] total
 - Passing: [X]
 - Failing: 0
 
-### Code Quality
-- [x] Follows naming conventions
-- [x] No duplication
-- [x] Functions are focused
-- [x] Matches project patterns
-
-### Notes
-[Any observations or suggestions for future improvement]
+### Deferred Observations
+[Issues noticed in OTHER files that are out of scope for this task. Report only, do not fix.]
 
 ### Task Complete — Ready for next task
 ```
@@ -113,13 +146,16 @@ Report back to the orchestrator:
 ## Guidelines
 
 **DO:**
+- Run the full quality checklist for every task (this is non-negotiable)
 - Make small, incremental changes
 - Run tests after every change
 - Improve readability and maintainability
 - Follow project coding standards
 - Remove unused code/imports
+- Report issues in other files as "Deferred Observations" without fixing them
 
 **DON'T:**
+- Skip the quality checklist even if the code "looks fine"
 - Change behavior (tests must still pass)
 - Add new features
 - Refactor unrelated code
@@ -128,10 +164,6 @@ Report back to the orchestrator:
 
 ## When to Skip Refactoring
 
-If the implementation is already clean:
-- Follows all standards
-- No duplication
-- Clear naming
-- Simple and focused
-
-Report: "No refactoring needed — code meets quality standards"
+If the implementation passes the full quality checklist without issues:
+- Report: "No refactoring needed — code passes quality review"
+- Still include the Quality Review Results table showing all categories as PASS

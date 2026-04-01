@@ -148,7 +148,7 @@ Refactor while keeping tests green.
 
 ### Verifier (PHASE END)
 ```
-Delegate to sdd-verifier and sdd-review subagents in parallel:
+Delegate to sdd-verifier subagent:
 
 Context:
 - Spec: [path to spec.md]
@@ -156,6 +156,7 @@ Context:
 - Completed tasks: [list of task IDs]
 - Coverage target: [from spec or standards]
 
+Run quality gates (formatter, linter, type checker), then full test suite.
 Verify phase completion and report results.
 ```
 

@@ -117,6 +117,7 @@ your-project/
 │   │   ├── sdd-onboard/SKILL.md
 │   │   ├── sdd-start/SKILL.md
 │   │   ├── sdd-start-issue/SKILL.md  #   Issue-driven unguided pipeline
+│   │   ├── sdd-clarify/SKILL.md     #   Requirements clarification via issue tracker
 │   │   ├── sdd-initiate/SKILL.md
 │   │   ├── sdd-shape/SKILL.md
 │   │   ├── sdd-discuss/SKILL.md      #   Optional agent team discussion
@@ -131,9 +132,11 @@ your-project/
 │       ├── sdd-architect.md           #   Architecture planning agent
 │       ├── sdd-test-writer.md
 │       ├── sdd-implementer.md
-│       ├── sdd-refactorer.md
-│       ├── sdd-review.md             #   Code review agent
-│       └── sdd-verifier.md
+│       ├── sdd-refactorer.md          #   Quality-gated refactoring
+│       ├── sdd-review-correctness.md  #   Correctness review (behavioral)
+│       ├── sdd-review-coverage.md     #   Coverage review (test gaps)
+│       ├── sdd-review-quality.md      #   Quality review (patterns, security, scope)
+│       └── sdd-verifier.md            #   Quality gates + test verification
 │
 ├── .github/                           # VS Code Copilot
 │   ├── agents/                        #   Agent definitions (14 files)
@@ -181,6 +184,11 @@ your-project/
 │  FEATURE DEVELOPMENT (Repeatable)                               │
 │  ────────────────────────────────                               │
 │                                                                 │
+│  /sdd.clarify (Optional — before /sdd.start)                    │
+│      └── Gather requirements from stakeholders via issue tracker │
+│              │                                                  │
+│              ▼ [Stakeholder responds]                           │
+│                                                                 │
 │  /sdd.start (Phases 1-3 combined)                               │
 │      ├── Creates feature branch                                 │
 │      ├── Searches codebase for similar features                 │
@@ -205,7 +213,7 @@ your-project/
 │              │                                                  │
 │              ▼                                                  │
 │  /sdd.validate (Phase 6)                                        │
-│      └── Verifies implementation vs spec                        │
+│      └── Parallel reviewers: correctness, coverage, quality     │
 │              │                                                  │
 │              ▼                                                  │
 │  /sdd.complete (Phase 7)                                        │
@@ -228,6 +236,7 @@ your-project/
 
 | Phase | VS Code Copilot | Claude Code | Description |
 |-------|----------------|-------------|-------------|
+| — (optional) | — | `/sdd-clarify [issue]` | Requirements clarification via issue tracker |
 | 1-3 combined | `/sdd.start [desc]` | `/sdd-start [desc]` | Start new spec |
 | 1 | `/sdd.initiate` | `/sdd-initiate` | Create branch and folder |
 | 2 | `/sdd.shape` | `/sdd-shape` | Gather requirements |
@@ -236,7 +245,7 @@ your-project/
 | — (optional) | `/sdd.architect` | `/sdd-architect` | Architecture planning |
 | 4 | `/sdd.tasks` | `/sdd-tasks` | Create TDD task breakdown |
 | 5 | `/sdd.implement` | `/sdd-implement` | TDD implementation |
-| 6 | `/sdd.validate` | `/sdd-validate` | Verify vs spec |
+| 6 | `/sdd.validate` | `/sdd-validate` | Verify vs spec (parallel reviewers) |
 | 7 | `/sdd.complete` | `/sdd-complete` | Finalize feature |
 | — | — | `/sdd-start-issue [id]` | Issue-driven unguided pipeline |
 
@@ -308,9 +317,18 @@ During shaping, `/sdd-discuss` spawns a stakeholder agent team — always includ
 
 `/sdd-architect` produces a concise architecture plan between specification and task breakdown, covering key decisions, component design, data contracts, and integration points.
 
-### Code Review During Validation
+### Parallel Code Review During Validation
 
-`/sdd-validate` now delegates to a dedicated `sdd-review` agent that performs a structured code review alongside the verification checks.
+`/sdd-validate` launches 3 specialized reviewers in parallel alongside the verifier:
+- **Correctness reviewer** — verifies implementation behavior matches spec requirements exactly
+- **Coverage reviewer** — verifies all requirements have adequate test coverage
+- **Quality reviewer** — checks code patterns, consistency, security, and scope compliance
+
+Each reviewer has strict scope boundaries to prevent finding overlap, and uses a shared file manifest built by the orchestrator. Validation supports up to 2 passes with automatic escalation.
+
+### Requirements Clarification
+
+`/sdd-clarify` gathers requirements from stakeholders via issue tracker comments before spec writing. Works with Atlassian (Jira), Linear, or Notion MCP integrations when available; falls back to direct user interaction.
 
 ### Issue-Driven Pipeline
 
@@ -333,13 +351,15 @@ Specs currently in development:
 
 ```
 specs/active/2025-01-29-user-auth/
-├── spec.md              # The specification
-├── tasks.md             # Task breakdown
-├── requirements.md      # Raw requirements from shaping
-├── architecture.md      # Architecture plan (optional, from /sdd-architect)
-├── validation-report.md # Generated by validate phase
-├── code-review.md       # Generated by validate phase (sdd-review agent)
-└── visuals/             # Mockups, wireframes
+├── spec.md                # The specification
+├── tasks.md               # Task breakdown
+├── requirements.md        # Raw requirements from shaping
+├── architecture.md        # Architecture plan (optional, from /sdd-architect)
+├── validation-report.md   # Generated by validate phase
+├── review-correctness.md  # Correctness review (behavioral verification)
+├── review-coverage.md     # Coverage review (test gap analysis)
+├── review-quality.md      # Quality review (patterns, security, scope)
+└── visuals/               # Mockups, wireframes
 ```
 
 ### specs/implemented/
@@ -383,7 +403,7 @@ Prospect supports two AI coding tools with parallel file structures:
 ### Claude Code (`.claude/`)
 
 - **Skills** (`.claude/skills/sdd-*/SKILL.md`): Slash commands for `/sdd-*` invocation
-- **Subagents** (`.claude/agents/sdd-*.md`): TDD worker agents (test-writer, implementer, refactorer, verifier), architecture agent, and code review agent
+- **Subagents** (`.claude/agents/sdd-*.md`): TDD worker agents (test-writer, implementer, refactorer, verifier), architecture agent, and 3 specialized review agents (correctness, coverage, quality)
 - **CLAUDE.md**: Project instructions with `@` imports to shared standards
 
 ### Shared (both tool chains)
