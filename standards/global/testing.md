@@ -8,23 +8,24 @@
 
 All feature implementation MUST follow Red-Green-Refactor:
 
-1. **RED** — Write a failing test first
-   - Test defines expected behavior
-   - Test MUST fail before any implementation
-   - Commit: `test: add failing test for [behavior]`
+1. **RED** — A failing test derived from a spec scenario
+   - Each test derives from exactly one acceptance scenario; the test name
+     embeds the scenario ID (e.g. `FR-2.1-S1`)
+   - The failing test output MUST be displayed before any implementation
+     is written
+   - Commit: `test: add failing tests for [behavior]`
 
 2. **GREEN** — Write minimal code to pass the test
    - Only implement what's needed to pass
    - No premature optimization
    - No gold-plating or "while I'm here" additions
-   - Commit: `feat: implement [behavior] to pass test`
+   - Commit: `feat: implement [behavior]`
 
-3. **REFACTOR** — Improve code while keeping tests green
-   - Clean up duplication
-   - Improve naming and structure
-   - Extract methods/classes as needed
-   - Tests MUST still pass after refactoring
-   - Commit: `refactor: improve [component] structure`
+3. **REFACTOR** — Improve the task's own diff while tests stay green
+   - Naming, duplication, dead code, error messages, nesting depth
+   - Issues in files outside the task's diff are recorded as deferred
+     observations, never fixed in passing
+   - Commit only when changes were made: `refactor: improve [component]`
 
 ### Section 1.2: Test-First Mandate
 
@@ -35,7 +36,24 @@ All feature implementation MUST follow Red-Green-Refactor:
 :white_check_mark: REQUIRED: Tests exist and fail before implementation begins
 ```
 
-### Section 1.3: Exceptions
+### Section 1.3: Test Ownership & Arbitration
+
+At rigor `medium` and above, a phase's tests are authored by a dedicated
+test author that has not seen any implementation, and the tests remain owned
+by it for the whole phase:
+
+```
+:x: PROHIBITED: Editing test files from the implementation context
+:white_check_mark: REQUIRED: Disputed test failures go to the test author for arbitration
+:white_check_mark: REQUIRED: Arbitration judges against the spec scenario and returns exactly
+   one verdict: test-correct (implementation must conform), test-wrong
+   (author fixes and commits), or scenario-ambiguous (user decides)
+```
+
+At rigor `low`, tests and implementation share one context; the displayed
+failing test output (Section 1.1) is the discipline gate.
+
+### Section 1.4: Exceptions
 
 Test-first MAY be relaxed ONLY for:
 - Exploratory spikes (must be thrown away or test-covered before merge)
@@ -58,14 +76,16 @@ Each test MUST be:
 
 ### Section 2.2: Test Naming
 
-Tests MUST have descriptive names following pattern:
+Tests MUST have descriptive names following the pattern below. A test
+derived from a spec scenario embeds the scenario ID:
 
 ```
-// Pattern: [unit]_[scenario]_[expected]
+// Pattern: [scenario-id]_[unit]_[scenario]_[expected]
 
 // Examples:
-test_user_login_with_valid_credentials_returns_token()
-test_user_login_with_invalid_password_returns_401()
+test_FR1_1_S1_user_login_with_valid_credentials_returns_token()
+test_FR1_1_S2_user_login_with_invalid_password_returns_401()
+// Or BDD style: it('FR-1.1-S1: returns token when credentials are valid')
 test_order_total_with_discount_calculates_correctly()
 
 // Or BDD style:
