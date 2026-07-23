@@ -21,6 +21,7 @@ Rebuild Prospect so a feature costs ~5× fewer tokens while TDD discipline gets 
 - As a developer, I want tests authored by an agent that has never seen the implementation so that tests define behavior instead of confirming code.
 - As a developer, I want implemented specs merged into `docs/` so that documentation always describes the system as built.
 - As a maintainer, I want every skill/agent file to be a lean final-state prompt with deterministic lint checks so that instructions stop drifting and being ignored.
+- As a developer, I want look & feel established as a requirement — with a visual direction chosen before implementation — so that UI features aren't improvised at build time.
 
 ## The Rigor Ladder (cross-cutting)
 
@@ -33,6 +34,8 @@ Each tier strictly adds to the previous one. Stored as `rigor:` in spec frontmat
 | **high** | + architecture.md | same | same | Gate + 3-reviewer workflow with verification stage, 2-pass cap, user sign-off | off |
 | **xhigh** | same | same | same | same | Parallel persona reviews (no debate) |
 | **max** | same | same | same | same | Negotiating agent team (debate) |
+
+Scenario audit (FR-12): inline rubric pass at `low`; independent auditor subagent at `medium+`. UI design (FR-13) is conditional on UI surface, not tier.
 
 ## Functional Requirements
 
@@ -122,7 +125,7 @@ Each tier strictly adds to the previous one. Stored as `rigor:` in spec frontmat
 ### FR-10: Prompt Standards & Framework Lint
 
 - **FR-10.1**: Every skill/agent/template file is a final-state prompt: imperative, present-tense; zero references to process history, prior versions, removed tools, or change rationale; constraints stated once at the point of action; known failure modes enforced via verifiable artifacts (e.g. "display the failing test output before implementing") rather than exhortation.
-- **FR-10.2 (word budgets)**: skills ≤700 words; agents ≤550; templates ≤450 (mini-spec ≤250); guidelines ≤350. Total prompt surface (`.claude/` + templates + new standards files) ≤9,000 words (v1: ~18,600).
+- **FR-10.2 (word budgets)**: skills ≤700 words; agents ≤550; templates ≤450 (mini-spec ≤250); guidelines ≤350. Total prompt surface (`.claude/` + templates + framework-shipped standards files) ≤9,500 words (v1: ~18,600). Per-project generated files (gate script, `ui-design.md`, `docs/INDEX.md`) are outside the budget.
 - **FR-10.3 (lint script)**: `tests/framework/lint.sh` checks deterministically: word budgets per file class; forbidden tokens (`TeamCreate`, `TeamDelete`, removed skill/agent names, history phrases: "previously", "no longer", "changed from", "instead of the old"); required sections per file class (agents: context received / process / output contract); all file paths referenced by prompts exist. Runs in the release workflow.
   - S1: WHEN lint fails, THE RELEASE WORKFLOW SHALL fail.
 
@@ -131,6 +134,24 @@ Each tier strictly adds to the previous one. Stored as `rigor:` in spec frontmat
 - **FR-11.1**: Removed from the repo: `.github/agents/`, `.github/prompts/`, `.github/instructions/`, `.github/copilot-instructions.md` (Copilot toolchain); skills `sdd-start-issue`, `sdd-initiate`, `sdd-shape`, `sdd-specify`; agents `sdd-implementer`, `sdd-refactorer`, `sdd-verifier` (agent — the gate script replaces it). `.github/workflows/release.yml` stays.
 - **FR-11.2**: `install.sh` / `install.ps1`: remove toolchain selection (Claude-only), keep version pinning, checksum manifest, and `.prospect-incoming` conflict handling; add new files (workflows, gate templates, docs index template) to the manifest. Existing installer/e2e tests updated **first** (test-first applies — this is tested shell code).
 - **FR-11.3**: `README.md` and `CLAUDE.md` rewritten for the v2 pipeline; version bumps to v2.0.0.
+
+### FR-12: Scenario Audit
+
+- **FR-12.1**: After the spec is written and before it is presented for user review, its scenarios are audited for completeness. At `medium+` this is a fresh `sdd-scenario-auditor` subagent (the writing context cannot audit itself); at `low` it is an inline rubric pass.
+  - S1: WHEN spec writing completes and rigor is `medium` or higher, THE SYSTEM SHALL run the auditor before presenting the spec for review.
+- **FR-12.2 (rubric)**: per FR, at least one unwanted-behavior scenario (`IF … THEN`), not only happy paths; EARS pattern sweep (state-driven `WHILE`, optional `WHERE`, boundary conditions); operation symmetry (create→update/delete/empty); constraints mentioned in prose but lacking a scenario; every user story maps to ≥1 scenario; `SHALL`/`Then` clauses assert observable outcomes; contradictions between scenarios and with Out of Scope; UI-state scenarios (empty/loading/error) when the feature has UI surface (FR-13).
+- **FR-12.3 (gap report)**: The auditor returns a structured gap list: FR, gap type, suggested scenario draft.
+  - S1: WHEN gaps are reported, THE SYSTEM SHALL present them alongside the spec review with per-scenario accept/reject; accepted drafts are merged into the spec before `/sdd-tasks`.
+- **FR-12.4**: The auditor never edits the spec; it reports only.
+
+### FR-13: UI Design
+
+- **FR-13.1 (durable direction)**: `standards/global/ui-design.md` is generated per project — by `/sdd-onboard` from the existing app (design tokens, component library, typography/spacing scale, real screens) or by `/sdd-init-project` from Q&A (brand, tone, references, accessibility bar) — and includes explicit anti-generic guidance. It is injected into every UI-touching prompt: shape questions, design exploration, implement tasks with UI surface, quality review.
+- **FR-13.2 (look & feel is a requirement)**: WHEN discovery detects UI surface, THE SHAPE STEP SHALL ask look & feel questions — key screens, states (empty/loading/error), density and tone, responsive targets, visual references, applicable existing components — in addition to integration questions. UI states become scenarios.
+- **FR-13.3 (design exploration)**: WHEN look & feel is significant and unsettled, THE SYSTEM SHALL offer to generate 1–3 self-contained HTML mockup variants in `specs/active/[folder]/visuals/`, each committing to a distinct direction. The user picks or mixes; the chosen direction is recorded in the spec's Visual Design section and is binding on implementation, like `architecture.md`.
+  - S1: WHEN an approved design direction exists, THE IMPLEMENTER SHALL build to it and SHALL NOT improvise alternative styling.
+- **FR-13.4**: The design-exploration prompt explicitly activates deliberate visual design (aesthetic direction, typography, avoidance of template defaults) and loads `ui-design.md` — design capability is prompted, never assumed.
+- **FR-13.5**: The quality reviewer checks design conformance when an approved direction exists. Look & feel itself is excluded from unit tests; behavioral UI (conditional logic, accessibility) remains tested per testing standards.
 
 ## Technical Considerations
 
@@ -142,6 +163,7 @@ Each tier strictly adds to the previous one. Stored as `rigor:` in spec frontmat
 │   ├── sdd-architect.md            # designer (high+), rewritten
 │   ├── sdd-test-author.md          # Engine B, interface-designer framing
 │   ├── sdd-reviewer.md             # combined reviewer (medium)
+│   ├── sdd-scenario-auditor.md     # spec scenario completeness audit
 │   ├── sdd-review-correctness.md   # specialists (high+), rewritten w/ evidence bar
 │   ├── sdd-review-coverage.md
 │   ├── sdd-review-quality.md
@@ -158,7 +180,8 @@ Each tier strictly adds to the previous one. Stored as `rigor:` in spec frontmat
 specs/
 ├── _templates/ (spec, spec-mini, tasks, docs-index)
 ├── active/   └── archive/          # archive replaces implemented/
-standards/global/ (code-quality, testing, git-workflow, scenario-guidelines, validation-calibration)
+standards/global/ (code-quality, testing, git-workflow, scenario-guidelines, validation-calibration;
+                   ui-design generated per project by onboard/init)
 scripts/  (sdd-gate templates; per-project gate generated by onboard/init)
 tests/framework/lint.sh
 ```
