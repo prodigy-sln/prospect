@@ -25,8 +25,8 @@ author: [name]
 ## Functional Requirements
 
 [Scenario rules: standards/global/scenario-guidelines.md. Each scenario
-becomes exactly one test named with its ID. Every FR needs at least one
-happy-path and one unwanted-behavior scenario.]
+becomes exactly one test, mapped in this folder's test-map.md. Every FR
+needs at least one happy-path and one unwanted-behavior scenario.]
 
 ### [Requirement Group]
 

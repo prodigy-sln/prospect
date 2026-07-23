@@ -9,8 +9,8 @@
 All feature implementation MUST follow Red-Green-Refactor:
 
 1. **RED** — A failing test derived from a spec scenario
-   - Each test derives from exactly one acceptance scenario; the test name
-     embeds the scenario ID (e.g. `FR-2.1-S1`)
+   - Each test derives from exactly one acceptance scenario; the mapping is
+     recorded in the spec folder's `test-map.md`, never in test names or code
    - The failing test output MUST be displayed before any implementation
      is written
    - Commit: `test: add failing tests for [behavior]`
@@ -76,16 +76,16 @@ Each test MUST be:
 
 ### Section 2.2: Test Naming
 
-Tests MUST have descriptive names following the pattern below. A test
-derived from a spec scenario embeds the scenario ID:
+Tests MUST have descriptive names that state behavior. Spec and scenario
+IDs never appear in test names or code — the scenario mapping lives in the
+spec folder's `test-map.md`:
 
 ```
-// Pattern: [scenario-id]_[unit]_[scenario]_[expected]
+// Pattern: [unit]_[scenario]_[expected]
 
 // Examples:
-test_FR1_1_S1_user_login_with_valid_credentials_returns_token()
-test_FR1_1_S2_user_login_with_invalid_password_returns_401()
-// Or BDD style: it('FR-1.1-S1: returns token when credentials are valid')
+test_user_login_with_valid_credentials_returns_token()
+test_user_login_with_invalid_password_returns_401()
 test_order_total_with_discount_calculates_correctly()
 
 // Or BDD style:

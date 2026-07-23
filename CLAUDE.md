@@ -25,7 +25,9 @@ downgrade only with explicit user confirmation.
 ## Key Principles
 
 1. **Specs are the source of truth.** Acceptance scenarios (EARS) are the
-   test contract: each scenario becomes exactly one test named with its ID.
+   test contract: each scenario becomes exactly one test. The mapping lives
+   in the spec folder's `test-map.md` — test names stay behavioral, and
+   code never carries spec or scenario IDs.
 2. **TDD is non-negotiable.** Failing test output is displayed before any
    implementation. At `medium+`, tests are authored and owned by the test
    author — implementation never edits test files; disputes go to
@@ -52,14 +54,23 @@ downgrade only with explicit user confirmation.
 | `/sdd-tasks` | Scenario-grouped task breakdown |
 | `/sdd-implement` | TDD implementation per the tier's engine |
 | `/sdd-validate` | Gate + tier-scaled review |
-| `/sdd-complete` | Consolidate into docs/, archive spec, open PR |
+| `/sdd-complete` | Publish (docs, registry, PR); finalize after approval |
 | `/consolidate-docs [path]` | Merge any source material into docs/ |
 
 ## Locations
 
-- Active specs: `specs/active/YYYY-MM-DD-name/` · Archive: `specs/archive/`
+- Active specs: `specs/active/YYYY-MM-DD-name/` (stay active through PR review)
+- Registry: `specs/REGISTRY.md` — permanent one-line record per completed spec
 - Templates: `specs/_templates/` · Living docs: `docs/` (routed by `INDEX.md`)
 - Quality gate: `scripts/sdd-gate.*`
+
+## Prospect Settings
+
+- `spec-disposal: delete` — default: the spec folder is removed at finalize
+  (after PR approval); `main` never carries it. Set `archive` (+
+  `retention: [days]`, default 180) for regulated projects or when branch
+  protection dismisses approvals on new commits: the folder moves to
+  `specs/archive/YYYY/` at publish and expired folders are pruned there.
 
 ## Standards
 
@@ -77,8 +88,8 @@ review prompts.
 ## Before Writing Code
 
 1. A spec must exist — otherwise suggest `/sdd-start`.
-2. Follow `tasks.md`; reference scenario IDs (FR-x.y-Sz) in tests and
-   commits.
+2. Follow `tasks.md`; reference scenario IDs (FR-x.y-Sz) in tasks and
+   commit messages on the feature branch — never in code or test names.
 3. At `medium+`, never edit test files from the implementation context —
    send disputes to the test author.
 

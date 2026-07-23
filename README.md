@@ -28,8 +28,9 @@ irm https://raw.githubusercontent.com/prodigy-sln/prospect/main/install.ps1 | ie
 Pin a version by passing a tag (`… | bash -s -- v2.0.0`). Re-run the same
 command to update: unmodified framework files update silently, files you
 modified are saved alongside as `<filename>.prospect-incoming` for manual
-merge, and your content (`specs/active/`, `specs/archive/`, `docs/`,
-`product/mission.md`, `product/roadmap.md`) is never touched.
+merge, and your content (`specs/active/`, `specs/archive/`,
+`specs/REGISTRY.md`, `docs/`, `product/mission.md`, `product/roadmap.md`)
+is never touched.
 
 <details>
 <summary>Manual installation</summary>
@@ -67,8 +68,9 @@ The pillars:
 
 - **Scenarios are the contract.** Acceptance criteria are written in EARS
   form (`WHEN … THE SYSTEM SHALL …`); each scenario becomes exactly one
-  test carrying the scenario ID. An independent auditor checks the spec
-  for gaps before you review it.
+  test, mapped in the spec folder's `test-map.md` — test names stay
+  behavioral and code carries no spec references. An independent auditor
+  checks the spec for gaps before you review it.
 - **TDD with honest tests.** At `medium+` a test author that has never seen
   any implementation designs the interface and writes the failing tests;
   implementation happens inline and must conform. Disputed failures go
@@ -81,9 +83,11 @@ The pillars:
   standard; UI features get look & feel questions and optional HTML mockup
   variants — the chosen direction is binding.
 - **Living docs.** `/sdd-complete` consolidates each finished spec into
-  `docs/` (routed by `docs/INDEX.md`), then archives the spec folder.
-  `docs/` always reads as-built; future concepts live in specs and the
-  roadmap.
+  `docs/` (routed by `docs/INDEX.md`), registers it in `specs/REGISTRY.md`,
+  and — after PR approval — removes the spec folder so `main` never carries
+  process artifacts (an archive mode with rolling retention exists for
+  regulated projects). `docs/` always reads as-built; future concepts live
+  in specs and the roadmap.
 
 ## What's Included
 
@@ -96,7 +100,7 @@ The pillars:
     └── sdd-validate.js  # reviewer fan-out with per-finding verification
 CLAUDE.md              # project instructions
 standards/global/      # code quality, testing, git, scenarios, calibration
-specs/                 # active/ · archive/ · _templates/
+specs/                 # active/ · REGISTRY.md · _templates/
 product/               # mission & roadmap templates
 ```
 

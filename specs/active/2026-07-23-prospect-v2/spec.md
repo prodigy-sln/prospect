@@ -52,8 +52,8 @@ Scenario audit (FR-12): inline rubric pass at `low`; independent auditor subagen
 ### FR-2: Spec Format — Scenarios as Test Contract
 
 - **FR-2.1**: Every functional requirement in a spec carries acceptance scenarios in EARS (`WHEN … THE SYSTEM SHALL …`) or Given/When/Then form, with stable IDs `FR-x.y-Sz`.
-- **FR-2.2**: Each scenario maps to exactly one test; the test name embeds the scenario ID.
-  - S1: WHEN validation cross-references coverage, THE SYSTEM SHALL locate tests by scenario ID in test names, with no separate traceability matrix.
+- **FR-2.2**: Each scenario maps to exactly one test. The mapping is a spec-folder artifact — `test-map.md`, written and maintained by the test author. Test names stay behavioral; code and test names never carry spec or scenario IDs. Long-term provenance runs through consolidated docs and git history.
+  - S1: WHEN validation cross-references coverage, THE SYSTEM SHALL locate tests via `test-map.md` and verify the map's accuracy (named test exists in the named file).
 - **FR-2.3**: A scenario-guidelines standard (`standards/global/scenario-guidelines.md`, ≤350 words) defines: one behavior per scenario, observable outcomes only in `SHALL`/`Then` clauses, concrete example data, no UI-mechanics phrasing for non-UI requirements. It is referenced by the spec-writing and test-author prompts.
 - **FR-2.4**: Two spec templates exist: full (`spec.template.md`) and mini (`spec-mini.template.md`, single file, ≤250 words of scaffold) for `low` tier.
 
@@ -68,7 +68,7 @@ Scenario audit (FR-12): inline rubric pass at `low`; independent auditor subagen
 - **FR-4.1 (low tier)**: The main context runs the full cycle per task: write failing test → run and display failing output → implement minimally → green → refactor own diff via checklist → commit sequence `test:` / `feat:` / `refactor:` (refactor commit only when changes were made).
   - S1: WHEN implementation code is about to be written and no failing test output for the task has been displayed in the session, THE SYSTEM SHALL stop and produce the failing test first.
 - **FR-4.2 (medium+, Engine B — test author)**: At each phase start, exactly one named test-author subagent is spawned. It receives only: spec path, the phase's scenario IDs, testing-standards path, scenario-guidelines path.
-  - S1: WHEN the test author completes, THE SYSTEM SHALL receive a structured contract: interface decisions (signatures, types, error contracts), test-file paths, test-name↔scenario-ID map, failing count, test command.
+  - S1: WHEN the test author completes, THE SYSTEM SHALL receive a structured contract: interface decisions (signatures, types, error contracts), the path to `test-map.md`, failing count, test command.
   - S2: WHEN the test author's tests do not fail on first run, THE TEST AUTHOR SHALL investigate (already-satisfied requirement vs. defective test) and flag rather than proceed.
 - **FR-4.3 (test author identity)**: The test-author prompt frames the agent as the feature's first consumer and interface designer — "decide how this feature is used and how it fails, expressed as tests" — not as a test generator. Its interface contract is binding on the implementer; where `architecture.md` exists, the author consumes its interfaces and flags conflicts instead of diverging.
 - **FR-4.4 (ownership + arbitration)**: During a phase, test files belong to the test author.
@@ -111,7 +111,13 @@ Scenario audit (FR-12): inline rubric pass at `low`; independent auditor subagen
 ### FR-8: Completion — Consolidation into docs/
 
 - **FR-8.1**: `docs/` contains as-built reality only. Future concepts live in active specs and `product/roadmap.md`.
-- **FR-8.2**: `/sdd-complete` (after gate + validation PASS): updates spec status, invokes the docs-consolidator on the spec folder, then moves the folder to `specs/archive/YYYY-MM-DD-name/` (audit trail), then commits, then creates the PR — so docs changes ship and get reviewed with the code.
+- **FR-8.2 (two-phase completion)**: `/sdd-complete` is a state machine — the spec's lifecycle ends at merge, not at validation.
+  - **Publish** (validation PASS, no PR yet): final gate, spec status update, docs consolidation, registry append (FR-8.6), PR creation. The spec folder stays in `specs/active/` so reviewers see it in the PR diff and review fixes run with full machinery.
+  - **Finalize** (PR approved, delete mode): remove the spec folder, push, squash-merge — the folder was added and removed within the branch, so `main` never carries it; registry line and docs changes do land.
+  - S1: WHEN a PR reviewer requests changes, THE SYSTEM SHALL apply fixes with the spec folder still present in `specs/active/` — recovery from git history is never required in the normal loop.
+  - S2: IF branch protection dismisses approvals on new commits, THEN THE SYSTEM SHALL tell the user that finalize needs one re-approval of the deletion commit (or the project switches to archive mode).
+- **FR-8.6 (registry)**: `specs/REGISTRY.md` is append-only; Publish adds one line per completed spec: folder name, date, rigor, topic tags, one-line summary, PR number. Lines persist regardless of disposal mode — existence never vanishes from squash merges or pruning.
+- **FR-8.7 (disposal modes)**: CLAUDE.md setting `spec-disposal: delete` (default) | `archive` with `retention: [days]` (default 180). Archive mode moves the folder to `specs/archive/YYYY/` during Publish and prunes expired archive folders in the same commit; nothing runs after PR approval.
 - **FR-8.3 (vendored consolidator)**: The `docs-consolidator` agent and `/consolidate-docs` skill are vendored from living-docs-workflow, tracker-agnostic (no Linear/tracking-file machinery). Behavior: read `docs/INDEX.md` → read spec folder → extract permanent reference material (requirements→behavior docs, architecture decisions→ADRs, user-facing changes→user docs), skip process artifacts (tasks, validation reports) → merge without duplicating or overwriting other sources → update INDEX Sources column.
 - **FR-8.4**: `/sdd-onboard` and `/sdd-init-project` generate `docs/INDEX.md` (structure, file registry with Sources, routing guide) when absent.
 - **FR-8.5**: WHEN `docs/INDEX.md` is absent at completion time, THE SYSTEM SHALL offer to generate it; if declined, it SHALL append a completion summary to `docs/CHANGELOG-features.md` as minimal fallback.
@@ -179,7 +185,8 @@ Scenario audit (FR-12): inline rubric pass at `low`; independent auditor subagen
     └── sdd-validate.js
 specs/
 ├── _templates/ (spec, spec-mini, tasks, docs-index)
-├── active/   └── archive/          # archive replaces implemented/
+├── REGISTRY.md                     # permanent record, one line per spec
+├── active/   └── archive/YYYY/     # archive mode only, rolling retention
 standards/global/ (code-quality, testing, git-workflow, scenario-guidelines, validation-calibration;
                    ui-design generated per project by onboard/init)
 scripts/  (sdd-gate templates; per-project gate generated by onboard/init)

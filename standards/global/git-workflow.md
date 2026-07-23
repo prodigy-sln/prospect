@@ -119,7 +119,7 @@ A Pull Request MUST NOT be opened until:
 :white_check_mark: REQUIRED: /sdd-validate has produced a PASS report
 :white_check_mark: REQUIRED: The quality gate (scripts/sdd-gate.*) exits 0 on the branch
 :white_check_mark: REQUIRED: spec.md status updated to "implemented"
-:white_check_mark: REQUIRED: Spec consolidated into docs/ and moved to specs/archive/
+:white_check_mark: REQUIRED: Spec consolidated into docs/ and registered in specs/REGISTRY.md
 :x: PROHIBITED: Opening PR with failing tests
 :x: PROHIBITED: Opening PR before /sdd-complete
 ```
@@ -131,7 +131,7 @@ A Pull Request MUST NOT be opened until:
 <!-- One sentence: what does this PR do? -->
 
 ## Why
-<!-- Reference spec: specs/archive/YYYY-MM-DD-feature-name/spec.md -->
+<!-- Reference: the spec (in specs/active/ during review) and its REGISTRY.md line -->
 
 ## How
 <!-- Brief technical summary of approach -->
@@ -139,7 +139,7 @@ A Pull Request MUST NOT be opened until:
 ## Checklist
 - [ ] Quality gate green
 - [ ] /sdd-validate passed
-- [ ] Docs consolidated, spec moved to archive/
+- [ ] Docs consolidated, spec registered
 - [ ] No out-of-scope changes included
 ```
 
@@ -183,7 +183,7 @@ Each commit MUST represent a single logical change:
 :white_check_mark: REQUIRED: Commit after each RED phase (failing tests written)
 :white_check_mark: REQUIRED: Commit after each GREEN phase (tests passing)
 :white_check_mark: REQUIRED: Commit after each REFACTOR phase (if changes made)
-:white_check_mark: REQUIRED: Commit when consolidating docs and archiving the spec
+:white_check_mark: REQUIRED: Commit when consolidating docs and registering the spec
 :x: PROHIBITED: Leaving uncommitted changes overnight
 :x: PROHIBITED: Committing commented-out code
 ```

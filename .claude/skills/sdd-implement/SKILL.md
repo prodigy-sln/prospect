@@ -35,15 +35,16 @@ Spawn `sdd-test-author` as a **named agent** (`test-author-phase-N`),
 passing only: spec path, this phase's scenario IDs, paths to `testing.md`,
 `scenario-guidelines.md`, and `architecture.md` (if present).
 
-Receive its Test Contract: interface decisions, test↔scenario map, failing
+Receive its Test Contract: interface decisions, the path to `test-map.md`
+(scenario → test file → test name, persisted in the spec folder), failing
 count, test command. **The interface decisions are binding.** If it reports
 already-satisfied scenarios or architecture conflicts, surface them to the
 user before continuing.
 
 ### 2. GREEN: implement inline, task by task
 
-Read the failing tests for the task's scenarios and implement the minimum
-that satisfies them. Run the tests; iterate to green. Commit:
+Find the task's tests via `test-map.md`, read them, and implement the
+minimum that satisfies them. Run the tests; iterate to green. Commit:
 `feat: implement [task]`.
 
 **Test files belong to the test author.** If a failing test looks wrong:

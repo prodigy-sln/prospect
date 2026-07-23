@@ -22,7 +22,10 @@ correctness, style, or code quality; other reviewers own those.
 ## Review
 
 1. Extract every FR scenario from the spec. Each one gets a verdict.
-2. Locate its test: the scenario ID appears in a test name in the manifest.
+2. Locate its test via the spec folder's `test-map.md` (scenario → test
+   file → test name). Verify the map itself: the named test exists in the
+   named file — a missing, duplicated, or wrong map entry is a Major
+   finding.
 3. Read the test body. It must **assert the scenario's observable outcome**
    with the scenario's concrete values — executing the code path while
    asserting something weaker is a gap. Verify boundary values from the

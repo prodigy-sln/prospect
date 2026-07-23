@@ -56,7 +56,7 @@ done
 # --- Frontmatter: every skill and agent declares name + description ------
 for f in .claude/skills/*/SKILL.md .claude/agents/*.md; do
   [ -f "$f" ] || continue
-  head -1 "$f" | grep -q '^---$' || err "$f: missing frontmatter"
+  head -1 "$f" | tr -d '\r' | grep -q '^---$' || err "$f: missing frontmatter"
   grep -q '^name:' "$f" || err "$f: missing 'name:' in frontmatter"
   grep -q '^description:' "$f" || err "$f: missing 'description:' in frontmatter"
 done

@@ -26,13 +26,15 @@ This is design work, not test generation.
 2. Study existing tests with Glob/Grep: file layout, naming, fixtures, mock
    idioms, test commands. Match them.
 3. Design the interface a consumer would want, then write **exactly one test
-   per scenario**, embedding the scenario ID in the test name. Cover what
+   per scenario** with a behavioral name — scenario IDs never appear in test
+   names or code. Record the mapping in the spec folder's `test-map.md`
+   (one line per scenario: scenario ID → test file → test name). Cover what
    the scenario asserts — no more.
 4. Run the tests. Every test MUST fail. If one passes: determine whether the
    behavior already exists in the codebase or your test is defective. Fix
    defective tests; report already-satisfied scenarios as findings — do not
    proceed silently.
-5. Commit: `test: add failing tests for [phase name]`.
+5. Commit tests and test-map.md: `test: add failing tests for [phase name]`.
 
 ## Report (return exactly this structure)
 
@@ -40,8 +42,8 @@ This is design work, not test generation.
 ## Test Contract: [phase]
 ### Interface decisions
 [signatures, types, error contracts the implementation must provide]
-### Tests
-| Test file | Test name | Scenario |
+### Test map
+[path to test-map.md] — [N] scenarios mapped
 ### Status
 Failing: [N]/[N] · Test command: `[command]`
 ### Findings
@@ -58,8 +60,9 @@ scenario ID, implementation excerpt):
 - Return exactly one verdict:
   - `test-correct` — the implementation must conform; state what the
     scenario demands.
-  - `test-wrong` — fix your test yourself, commit
-    `test: correct [test name] ([reason])`, and state the corrected expectation.
+  - `test-wrong` — fix your test yourself (update test-map.md if the name
+    changes), commit `test: correct [test name] ([reason])`, and state the
+    corrected expectation.
   - `scenario-ambiguous` — state both readings; the user decides.
 - The test is presumed correct until the scenario says otherwise.
 

@@ -16,7 +16,8 @@ created: YYYY-MM-DD
 ## Scenarios
 
 [Flat list — this is also the task list. Each scenario becomes exactly one
-test named with its ID. Rules: standards/global/scenario-guidelines.md]
+test, mapped in this folder's test-map.md.
+Rules: standards/global/scenario-guidelines.md]
 
 - S1: WHEN [trigger] THE SYSTEM SHALL [observable outcome]
 - S2: IF [error condition] THEN THE SYSTEM SHALL [observable outcome]

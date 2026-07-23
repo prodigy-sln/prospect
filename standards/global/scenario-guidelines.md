@@ -1,8 +1,13 @@
 # Scenario Guidelines
 
 Acceptance scenarios are the test contract: each scenario becomes exactly
-one test, named with the scenario ID (e.g. `FR-2.1-S1`). Write scenarios so
-a test can be derived from them mechanically.
+one test. Write scenarios so a test can be derived from them mechanically.
+
+Tests carry no spec references: test names describe behavior ("rejects an
+expired token with 410"), and the scenario↔test mapping lives in the spec
+folder's `test-map.md`, written and maintained by the test author.
+Long-term provenance runs through the consolidated docs and git history —
+never through IDs in code.
 
 ## Format
 
