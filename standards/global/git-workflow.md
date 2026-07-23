@@ -32,19 +32,19 @@ Rules:
 ```
 main (or dev)
   │
-  └─► feature/YYYY-MM-DD-feature-name   ← Created by /sdd.initiate
+  └─► feature/YYYY-MM-DD-feature-name   ← Created by /sdd-start
         │
         │  All spec, task, and implementation work happens here
         │
-        └─► [Pull Request] ← Created after /sdd.complete
+        └─► [Pull Request] ← Created by /sdd-complete
               │
               └─► Merged to main by developer
 ```
 
 ```
-:white_check_mark: REQUIRED: Create branch at start of /sdd.initiate phase
+:white_check_mark: REQUIRED: Create branch at the start of /sdd-start
 :white_check_mark: REQUIRED: All work (specs, code, tests) on feature branch
-:white_check_mark: REQUIRED: Branch is merged only after /sdd.validate passes
+:white_check_mark: REQUIRED: Branch is merged only after /sdd-validate passes
 :x: PROHIBITED: Committing spec or implementation directly to main
 :x: PROHIBITED: Starting implementation before branch is created
 ```
@@ -92,7 +92,7 @@ All commits MUST follow the Conventional Commits specification:
 
 ### Section 2.3: TDD Commit Sequence
 
-During /sdd.implement, commits MUST follow the Red-Green-Refactor sequence:
+During /sdd-implement, commits MUST follow the Red-Green-Refactor sequence:
 
 ```
 test: add failing tests for [task name]        ← RED phase commit
@@ -116,12 +116,12 @@ refactor: extract token generation to service
 A Pull Request MUST NOT be opened until:
 
 ```
-:white_check_mark: REQUIRED: /sdd.validate has produced a PASS report
-:white_check_mark: REQUIRED: All tests passing on the feature branch
+:white_check_mark: REQUIRED: /sdd-validate has produced a PASS report
+:white_check_mark: REQUIRED: The quality gate (scripts/sdd-gate.*) exits 0 on the branch
 :white_check_mark: REQUIRED: spec.md status updated to "implemented"
-:white_check_mark: REQUIRED: Spec folder moved to specs/implemented/
+:white_check_mark: REQUIRED: Spec consolidated into docs/ and moved to specs/archive/
 :x: PROHIBITED: Opening PR with failing tests
-:x: PROHIBITED: Opening PR before /sdd.complete phase
+:x: PROHIBITED: Opening PR before /sdd-complete
 ```
 
 ### Section 3.2: PR Description Template
@@ -131,15 +131,15 @@ A Pull Request MUST NOT be opened until:
 <!-- One sentence: what does this PR do? -->
 
 ## Why
-<!-- Reference spec: specs/implemented/YYYY-MM-DD-feature-name/spec.md -->
+<!-- Reference spec: specs/archive/YYYY-MM-DD-feature-name/spec.md -->
 
 ## How
 <!-- Brief technical summary of approach -->
 
 ## Checklist
-- [ ] All tests passing
-- [ ] /sdd.validate passed
-- [ ] Spec moved to implemented/
+- [ ] Quality gate green
+- [ ] /sdd-validate passed
+- [ ] Docs consolidated, spec moved to archive/
 - [ ] No out-of-scope changes included
 ```
 
@@ -183,7 +183,7 @@ Each commit MUST represent a single logical change:
 :white_check_mark: REQUIRED: Commit after each RED phase (failing tests written)
 :white_check_mark: REQUIRED: Commit after each GREEN phase (tests passing)
 :white_check_mark: REQUIRED: Commit after each REFACTOR phase (if changes made)
-:white_check_mark: REQUIRED: Commit when moving spec to implemented/
+:white_check_mark: REQUIRED: Commit when consolidating docs and archiving the spec
 :x: PROHIBITED: Leaving uncommitted changes overnight
 :x: PROHIBITED: Committing commented-out code
 ```

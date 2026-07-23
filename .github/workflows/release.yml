@@ -20,6 +20,10 @@ jobs:
         with:
           fetch-depth: 0   # full history for auto-generated release notes
 
+      - name: Framework lint
+        # word budgets, forbidden references, frontmatter, path existence
+        run: bash tests/framework/lint.sh
+
       - name: Build release artifact
         # FR-8.2: produce .tar.gz and .zip containing all distributable files
         run: |
