@@ -57,7 +57,7 @@ needs at least one happy-path and one unwanted-behavior scenario.]
 
 [Binding. Explicitly list what will NOT be built.]
 
-- :x: [Excluded feature/capability]
+- [Excluded feature/capability]
 
 ## Dependencies
 

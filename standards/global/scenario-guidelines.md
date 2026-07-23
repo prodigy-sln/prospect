@@ -6,12 +6,14 @@ one test. Write scenarios so a test can be derived from them mechanically.
 Tests carry no spec references: test names describe behavior ("rejects an
 expired token with 410"), and the scenario↔test mapping lives in the spec
 folder's `test-map.md`, written and maintained by the test author.
-Long-term provenance runs through the consolidated docs and git history —
-never through IDs in code.
+Long-term provenance runs through consolidated docs and git history, never
+through IDs in code.
 
 ## Format
 
-Prefer EARS; Given/When/Then is acceptable.
+**EARS for FR-level scenarios** — the one-line form resists vague outcomes
+and multi-behavior drift. **Given/When/Then for E2E journeys** — multi-step
+flows with rich preconditions; each THEN asserts one observable outcome.
 
 | Pattern | Form | Use for |
 |---------|------|---------|

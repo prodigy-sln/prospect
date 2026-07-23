@@ -24,7 +24,7 @@ Rules: standards/global/scenario-guidelines.md]
 
 ## Out of Scope
 
-- :x: [Exclusion]
+- [Exclusion]
 
 ## Notes
 
