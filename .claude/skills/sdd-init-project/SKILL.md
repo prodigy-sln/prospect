@@ -1,211 +1,62 @@
 ---
 name: sdd-init-project
-description: Initialize a new project with the Prospect SDD framework — gathers tech stack info and generates standards
+description: "Initialize a new project with the SDD framework: gather stack and preferences, generate structure, standards, and gate"
 argument-hint: ""
 disable-model-invocation: true
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion
 ---
 
-# Initialize New Project
+# Initialize a New Project
 
-Configure the Prospect SDD framework for a new project by gathering requirements and generating project-specific files.
+Set up a fresh project for the SDD pipeline through a short Q&A, then
+generate everything the pipeline depends on.
 
-## Overview
+## Step 1: Q&A
 
-This command:
-1. Gathers project context through Q&A
-2. Creates spec and product folder structure
-3. Generates tech-stack-specific standards
-4. Creates mission document and CLAUDE.md
+Ask (decision-shaped, with defaults):
 
----
+1. Backend / frontend / database stack and test frameworks
+2. Formatter, linter, type checker preferences (default: the stack's
+   standard tools)
+3. Coverage targets (default: per `standards/global/testing.md`)
+4. UI product? → brand and tone, visual references, accessibility bar,
+   component library (existing or to establish)
+5. Issue tracker in use (or none)
+6. Documentation branches wanted under `docs/` (default: technical/, user/)
 
-## Step 1: Gather Project Context
+## Step 2: Generate Structure
 
-Ask the user these questions (adapt based on answers):
+Create the project skeleton for the chosen stack, plus:
 
-### Round 1: Project Basics
+- `docs/INDEX.md` from `specs/_templates/docs-index.template.md` with the
+  chosen branches and an initial routing guide
+- `product/mission.md` and `product/roadmap.md` from `product/` templates
+- `CLAUDE.md` tech-stack section filled in
 
-1. **Project Name & Purpose**:
-   "What is this project called, and what problem does it solve? (1-2 sentences)"
+## Step 3: Quality Gate
 
-2. **Target Users**:
-   "Who will use this application? (e.g., internal team, customers, developers)"
+Generate `scripts/sdd-gate.sh` and/or `scripts/sdd-gate.ps1` wiring the
+chosen tools in order: formatter check, linter (zero warnings), type
+check, test suite, coverage threshold. Non-zero exit on any failure with a
+compact failure list. Run it once on the skeleton to prove it's green.
 
-3. **Project Type**:
-   "What type of project is this?
-   - Web application (frontend + backend)
-   - API/Backend service only
-   - Frontend/UI only
-   - CLI tool
-   - Library/Package
-   - Other: [describe]"
+## Step 4: UI Design Standard (UI projects)
 
-### Round 2: Tech Stack
+Write `standards/global/ui-design.md` from the Q&A: design-token strategy,
+component reuse rules, typography and spacing scale, tone, accessibility
+bar, anti-generic guidance (no template defaults). This file is injected
+into every UI-touching prompt later — make it opinionated.
 
-4. **Backend Stack** (if applicable):
-   "What backend technology?
-   - .NET (C#)
-   - Node.js (TypeScript/JavaScript)
-   - Python (Django/FastAPI/Flask)
-   - Java (Spring)
-   - Go
-   - Other: [specify]
-   - No backend"
+## Step 5: Calibration
 
-5. **Frontend Stack** (if applicable):
-   "What frontend technology?
-   - React (TypeScript)
-   - Vue.js
-   - Angular
-   - Svelte
-   - Server-rendered (Razor, Vaadin, etc.)
-   - No frontend"
-
-6. **Database** (if applicable):
-   "What database?
-   - SQL Server
-   - PostgreSQL
-   - MySQL
-   - MongoDB
-   - SQLite
-   - No database
-   - Other: [specify]"
-
-### Round 3: Testing & Quality
-
-7. **Test Framework**:
-   "What test framework will you use?
-   For backend: xUnit, NUnit, Jest, pytest, JUnit, etc.
-   For frontend: Vitest, Jest, Testing Library, etc."
-
-8. **Code Quality Tools**:
-   "Any specific linting/formatting tools?
-   - ESLint/Prettier (JS/TS)
-   - StyleCop/EditorConfig (.NET)
-   - Black/Ruff (Python)
-   - Other: [specify]"
-
-### Round 4: Integration & Workflow
-
-9. **External Integrations**:
-   "Will you use any of these? (select all that apply)
-   - Jira (for ticket tracking)
-   - GitHub (for source control)
-   - CI/CD pipeline
-   - Other: [specify]"
-
-10. **Existing Standards**:
-    "Do you have existing coding standards or conventions to incorporate?
-    If yes, please share or describe them."
-
----
-
-## Step 2: Create Folder Structure
-
-Create the project-specific folders:
-
-```bash
-mkdir -p specs/active specs/implemented specs/_templates
-mkdir -p standards/global
-mkdir -p product
-mkdir -p .claude/skills .claude/agents
-```
-
----
-
-## Step 3: Update CLAUDE.md
-
-Update `CLAUDE.md` with the tech stack:
-
-Replace the Tech Stack section at the bottom:
-```markdown
-## Tech Stack
-
-<!-- Updated by /sdd-init-project -->
-- Backend: [user's answer]
-- Frontend: [user's answer]
-- Database: [user's answer]
-- Testing: [user's answer]
-```
-
-If `.github/copilot-instructions.md` exists, update it with the same tech stack info.
-
----
-
-## Step 4: Generate Standards Files
-
-Generate `standards/global/code-quality.md` and `standards/global/testing.md` based on the tech stack. Adapt naming conventions, patterns, and test framework details to the selected stack.
-
-Generate `standards/global/git-workflow.md` with branch naming and commit conventions.
-
----
-
-## Step 5: Generate Mission Document
-
-Create `product/mission.md` from `product/mission.template.md`:
-
-```markdown
-# [Project Name]
-
-## Mission
-
-[1-2 sentence purpose from user input]
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|------------|
-| Backend | [from answers] |
-| Frontend | [from answers] |
-| Database | [from answers] |
-| Testing | [from answers] |
-
-## Key Principles
-
-- **Spec-Driven Development (Prospect)**: All features start with a specification
-- **Test-Driven Development**: Tests before implementation
-- **Quality First**: Follow standards in `standards/global/`
-```
-
----
-
-## Step 6: Initialize Git (if not already)
-
-```bash
-git init
-git add -A
-git commit -m "chore: configure Prospect SDD framework for project"
-```
-
----
+Fill the skip rules in `standards/global/validation-calibration.md` with
+the project's generated paths and CI-enforced checks.
 
 ## Output
 
 ```
-## Project Configured
-
-**Project**: [name]
-
-### Files Created
-- `CLAUDE.md` — Project instructions for Claude Code
-- `standards/global/code-quality.md` — [stack] conventions
-- `standards/global/testing.md` — TDD with [framework]
-- `standards/global/git-workflow.md` — Git conventions
-- `specs/active/` — For specs in development
-- `specs/implemented/` — For completed specs
-- `product/mission.md` — Project overview
-
-### Next Steps
-1. Review `product/mission.md`
-2. Review standards in `standards/global/`
-3. Start your first feature with `/sdd-start [description]`
+Project initialized.
+Stack: [summary] · Gate: scripts/sdd-gate.* (green)
+Docs: docs/INDEX.md · Standards: [list]
+Next: /sdd-start [first feature]
 ```
-
----
-
-## Notes
-
-- This command configures Prospect for new projects
-- For existing projects with code, use `/sdd-onboard` instead
-- Standards are generated as starting points; customize as needed

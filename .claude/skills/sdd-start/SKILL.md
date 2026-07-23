@@ -1,196 +1,87 @@
 ---
 name: sdd-start
-description: Start a new Prospect spec — combines phases 1-3 (Initiate, Shape, Specify) into a single command
-argument-hint: "[feature description or JIRA-KEY]"
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task
+description: "Start a feature: choose rigor, create branch and spec folder, gather requirements, write and audit the specification"
+argument-hint: "[feature description or ISSUE-KEY]"
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task, AskUserQuestion
 ---
 
-# Start New Specification
+# Start a Feature
 
-Combines phases 1-3: Initiate → Shape → Specify
+Take a feature from description to a reviewed, audited specification.
 
-## Input Handling
+## Step 1: Rigor
 
-User provides: $ARGUMENTS
+Recommend a tier and let the user confirm; record it as `rigor:` in the spec
+frontmatter.
 
-### Jira Detection
+- **low** — isolated small change, no cross-cutting impact
+- **medium** — default
+- **high** — mandatory floor when the feature touches auth, payments,
+  personal data, compliance, or destructive migrations
+- **xhigh / max** — contested plans, many stakeholders (adds `/sdd-discuss`)
 
-1. **Check pattern**: Does input match `[A-Z]+-[0-9]+`?
-   - Yes → Attempt Jira fetch
-   - No → Treat as feature description
+Escalate later whenever new risk appears (record the reason in the
+frontmatter). Downgrade only with explicit user confirmation, recorded.
 
-2. **Jira MCP Detection**:
-   Try fetching Jira resources. If MCP tools are available, use them.
-   If unavailable and input is a ticket ID, ask user for a description instead.
-   If ticket is found, move to in progress and assign to current user.
+## Step 2: Branch & Folder
 
-3. **Graceful degradation**:
-   - If Jira unavailable AND input is ticket ID → **ASK user**: "Jira unavailable. Please describe this feature so I can proceed."
-   - If Jira unavailable AND input is description → Continue normally
-   - Never proceed with just a ticket ID and no context
+Branch `feature/YYYY-MM-DD-short-name` (issue-driven:
+`feature/KEY-123-short-name`). Folder `specs/active/YYYY-MM-DD-short-name/`.
+At `low`, create a single spec file from `specs/_templates/spec-mini.template.md`
+and skip to Step 4; otherwise initialize from `specs/_templates/spec.template.md`
+plus an empty `requirements.md`.
 
----
+## Step 3: Shape
 
-## Phase 1: Initiate
+1. If `docs/INDEX.md` exists, read the docs it routes for this topic before
+   touching code.
+2. Delegate codebase discovery to an Explore subagent; request a compact
+   report only: relevant components, patterns to follow, integration
+   points, reuse candidates.
+3. Ask the user the questions the codebase cannot answer (decision-shaped,
+   with options and a default). For issue-driven features, run
+   `/sdd-clarify` first.
+4. **UI surface detected** → also ask look & feel: key screens; empty,
+   loading, and error states; density and tone; responsive targets; visual
+   references; existing components to use. Integration questions alone are
+   insufficient for UI features.
+5. Record everything in `requirements.md`.
+6. At `xhigh`/`max`, run `/sdd-discuss` now. At lower tiers, suggest it when
+   stakeholder positions conflict.
 
-### Get Current Date
+## Step 4: Specify
 
-First, get today's date for folder naming:
+Write the spec from the template. Scenarios follow
+`standards/global/scenario-guidelines.md`: every FR gets at least one
+happy-path and one unwanted-behavior scenario; UI states become scenarios.
+Out of Scope must be non-empty — if it is, ask the user what is excluded.
+Incorporate `## Discussion Findings` from requirements.md when present.
 
-```bash
-date +%Y-%m-%d
-```
+## Step 5: Scenario Audit
 
-Use this date for all folder names below.
+At `medium+`, spawn `sdd-scenario-auditor` with the spec path and
+scenario-guidelines path. At `low`, apply its checklist inline. Keep the gap
+report for Step 7.
 
-### Generate Identifiers
+## Step 6: Design Exploration (UI features, when direction is unsettled)
 
-**Branch naming:**
-- From Jira: `feature/[ISSUE-KEY]-[summary-slug]`
-- From description: `feature/YYYY-MM-DD-[slug]`
+Offer to generate 1–3 self-contained HTML mockup variants in
+`specs/active/[folder]/visuals/`, each committing to a distinct direction.
+Apply `standards/global/ui-design.md` and deliberate visual design:
+aesthetic direction, typography, spacing — no template defaults. The user
+picks or mixes; record the approved direction in the spec's Visual Design
+section. It is binding for implementation.
 
-**Spec folder naming (ALWAYS date-prefixed):**
-- From Jira: `specs/active/YYYY-MM-DD-[ISSUE-KEY]-[summary-slug]/`
-- From description: `specs/active/YYYY-MM-DD-[slug]/`
+## Step 7: Review Handoff
 
-Slug: 2-4 words, kebab-case (e.g., `2026-01-29-state-management-system`)
+Present to the user together: spec summary, audit gaps (accept/reject each
+suggested scenario draft — accepted drafts merge into the spec), and design
+variants if any. After approval, commit: `docs(spec): add [feature] specification`.
 
-### Create Structure
-
-```bash
-git checkout -b [branch-name]
-mkdir -p specs/active/[folder-name]/visuals
-```
-
-1. Copy `specs/_templates/spec.template.md` → `spec.md`
-2. Update frontmatter: id, title, branch, status: active, created, updated
-3. Create `requirements.md` with initial context
-
----
-
-## Phase 2: Shape
-
-### Codebase Discovery (MANDATORY — Delegate to Explore subagent)
-
-Before asking questions, use the **Task tool** with `subagent_type: Explore` to search the codebase. This preserves context on the main conversation.
-
-Delegate with this prompt:
-
-```
-Search the codebase for context relevant to the feature: "[feature title/description]"
-
-Report the following in a structured markdown format:
-
-### Similar Features Found
-Search for keywords related to this feature. For each match:
-| Feature | Location | Relevance |
-|---------|----------|-----------|
-| [name]  | [path]   | [what can be reused] |
-
-### Reusable Components
-Find existing UI components, services, utilities that could be reused:
-- [Component]: [path] — [how to use]
-
-### Patterns to Follow
-How are similar features structured? Note file organization, naming, and architecture:
-- [Pattern]: See [path] for reference
-
-### Integration Points
-Existing APIs, services, shared data models this feature might connect to.
-
-### Database Schemas
-Tables, entities, or models that could be extended for this feature.
-```
-
-Save findings to reference in your questions. Document in `requirements.md` under "Codebase Analysis".
-
-### Ask Targeted Questions (5-8)
-
-Frame with sensible defaults based on codebase findings:
-
-1. **Users & Permissions**: Who will use this feature?
-2. **Core Workflow**: What's the main user journey?
-3. **Data Requirements**: What data needs to be captured/displayed?
-4. **Integration Points**: Does this integrate with existing features?
-5. **Validation & Business Rules**: What validation rules apply?
-6. **Edge Cases**: What happens when things go wrong?
-7. **Out of Scope** (CRITICAL): What should explicitly NOT be included?
-8. **Visual Design**: Do you have mockups or wireframes?
-
-### After Receiving Answers
-
-1. **Check for visuals**: `ls specs/active/[folder]/visuals/`
-2. **If images found**, analyze for UI elements, patterns, fidelity level
-3. **Save to requirements.md**: All Q&A, codebase findings, visual analysis
-
----
-
-## Phase 2.5: Discuss (Optional — Agent Team)
-
-After shaping is complete and requirements.md is saved, invoke `/sdd-discuss` to get multi-perspective feedback before writing the spec.
-
-This spawns a stakeholder agent team (always including an Architect, plus 1-2 additional personas relevant to the feature) that discusses the feature plan, answers open questions, and surfaces concerns. Their findings are appended to `requirements.md` under `## Discussion Findings`.
-
-**When to invoke**: Always offer this to the user. It's especially valuable when:
-- There are unresolved open questions from shaping
-- The feature touches multiple systems or stakeholder concerns
-- Trade-offs between competing priorities are non-obvious
-- The user wants a sanity check before committing to a spec
-
-**When to skip**: The user explicitly declines, or the feature is trivially scoped.
-
-Ask the user: *"Would you like me to run /sdd-discuss to get stakeholder feedback (Architect + relevant personas) before I write the spec?"*
-
-If yes, invoke the `sdd-discuss` skill via the Skill tool. After it completes, continue to Phase 3 below — the Specify phase will incorporate the discussion findings from `requirements.md`.
-
----
-
-## Phase 3: Specify
-
-### Generate spec.md
-
-Read `specs/_templates/spec.template.md` and fill all sections:
-
-- **Goal**: 1-2 sentences — what problem solved, what value delivered
-- **User Stories**: Max 5, format: "As a [user], I want [action] so that [benefit]"
-- **Functional Requirements**: Grouped, numbered (FR-1.1, FR-1.2), each with acceptance criteria
-- **Technical Considerations**: Architecture decisions, data model, API contracts
-- **Test Strategy**: Unit, integration, E2E tests with coverage targets
-- **Existing Code to Leverage**: Table with Feature | Location | What to Reuse
-- **Visual Design**: Reference visuals, note fidelity level
-- **Out of Scope**: Explicit exclusions (CRITICAL for preventing scope creep)
-- **Dependencies**: Blocking and external
-- **Assumptions**: Document assumptions made
-- **Clarifications**: Include Q&A from shaping and discussion findings (if `/sdd-discuss` was run)
-
-### Quality Checks
-
-- Every requirement must be testable
-- No ambiguity, or mark with `[NEEDS CLARIFICATION]` (max 3-5 markers)
-- Out of scope must be comprehensive
-- Existing code must be referenced where applicable
-
----
-
-## Output
+End with:
 
 ```
-## Specification Complete
-
-**Branch**: `[branch-name]`
-**Spec**: `specs/active/[folder]/spec.md`
-
-### Stats
-- User Stories: [count]
-- Functional Requirements: [count]
-- Existing Code References: [count]
-- Out of Scope Items: [count]
-
-### Next Steps
-1. Review the spec
-2. Add any missing visuals
-3. (Optional) Run: `/sdd-architect` to capture the architecture plan before tasks
-4. When ready, run: `/sdd-tasks`
+Spec approved and committed. Everything downstream needs is in
+specs/active/[folder]/ — safe to /clear.
+Next: /sdd-architect (high+) or /sdd-tasks (medium+) or /sdd-implement (low).
 ```
-
-Tell user to review spec before proceeding.

@@ -1,191 +1,70 @@
 ---
 name: sdd-complete
-description: "Phase 7: Finalize the feature — move spec to implemented, update status, generate summary"
-argument-hint: ""
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash
+description: "Finalize a validated feature: consolidate the spec into docs/, archive it, open the PR"
+argument-hint: "[spec folder name]"
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task
 ---
 
-# Complete Specification
-
-Finalize the feature and move spec to implemented.
+# Complete
 
 ## Prerequisites
 
-- Validation report shows PASS: `specs/active/[folder]/validation-report.md`
-- All tests passing
-- No outstanding issues
+- `validation-report.md` shows PASS (low tier: green gate note in the
+  mini-spec); at high+ the user has signed off
+- Working tree clean, all work committed
 
-If validation hasn't passed, suggest running `/sdd-validate` first.
+If validation hasn't passed, run `/sdd-validate` — do not proceed.
 
----
+## Step 1: Final Gate
 
-## Step 1: Verify Ready for Completion
+Run `scripts/sdd-gate.*` once more. Red gate = stop.
 
-Read the validation report and confirm:
-- [ ] Overall status is PASS
-- [ ] All requirements implemented
-- [ ] All tests passing
-- [ ] No scope violations
+## Step 2: Spec Status
 
-**If any check fails, do NOT proceed.** Run `/sdd-validate` again.
+Update spec frontmatter: `status: implemented`, add `completed: [today]`.
 
----
+## Step 3: Consolidate into docs/
 
-## Step 2: Update Spec Status
+`docs/` describes the system as built; this step keeps it true.
 
-Edit `specs/active/[folder]/spec.md` frontmatter:
+- `docs/INDEX.md` exists → delegate to the `docs-consolidator` agent with
+  the spec folder path. It merges permanent reference material into the
+  routed docs and updates the INDEX.
+- No `docs/INDEX.md` → offer to generate it from
+  `specs/_templates/docs-index.template.md` (registering existing docs),
+  then consolidate. If the user declines, append a completion summary
+  (feature, behavior, key decisions, spec archive link) to
+  `docs/CHANGELOG-features.md`.
 
-```yaml
----
-status: implemented  # Changed from 'active'
-completed: [today's date]  # Add this line
-updated: [today's date]
----
-```
-
----
-
-## Step 3: Move to Implemented
+## Step 4: Archive
 
 ```bash
-mv specs/active/[folder-name] specs/implemented/[folder-name]
+git mv specs/active/[folder] specs/archive/[folder]
 ```
 
-Final structure:
-```
-specs/implemented/[folder-name]/
-├── spec.md
-├── tasks.md
-├── requirements.md
-├── validation-report.md
-└── visuals/
-```
+Commit the move together with the docs updates:
+`docs: consolidate [feature] into living docs and archive spec`.
 
----
+## Step 5: Loose Ends
 
-## Step 4: Log Outstanding Issues
+- Outstanding non-blocking findings (Info) → create one issue each in the
+  connected tracker; without a tracker, list them in the PR body.
+- Spec has `jira:` and Jira MCP is available → transition the issue to Done
+  with a completion comment.
 
-If any outstanding issues were identified during validation (even if non-blocking), create a separate issue in the available issue tracker for each item before proceeding. Include:
-- Requirement/section reference
-- Severity and current impact
-- Repro steps or context
-- Link to spec folder and validation report
+## Step 6: Pull Request
 
-If no issue tracker is available, list the outstanding items in the completion summary instead.
+Create the PR to the default branch:
 
----
-
-## Step 5: Update Jira (if applicable)
-
-If spec has `jira:` in frontmatter and Jira MCP is available:
-1. Transition issue to "Done" (or appropriate status)
-2. Add completion comment with summary
-
----
-
-## Step 6: Update Architecture Decision Records (if applicable)
-
-If any architectural decisions were made during implementation that differ from the original spec, update the relevant ADRs to reflect the final implemented design.
-Read `specs/implemented/[folder-name]/architecture.md` if it exists for reference on what was implemented vs. originally specified.
-Follow the existing documentation pattern and adapt where necessary to capture the final design decisions and rationale.
-
----
-
-## Step 7: Generate Completion Summary
-
-```markdown
-# Completion Summary: [Feature Title]
-
-**Completed**: [today's date]
-**Branch**: `[branch-name]`
-**Spec**: `specs/implemented/[folder-name]/spec.md`
-
-## What Was Built
-[Brief description]
-
-### Key Components
-- [Component 1]: [path] - [description]
-
-### Test Coverage
-- Total tests: [X]
-- Coverage: [Y]%
-
-## Next Steps for User
-1. Review changes on branch `[branch-name]`
-2. Create Pull Request to merge into main
-3. Code review
-4. Merge and deploy
-```
-
----
-
-## Step 8: Final Git Status
-
-```bash
-git status
-git log --oneline -10
-```
-
-Ensure all changes are committed. When committing the move to implemented, make sure to also commit the removed files, i.e. make the "move" complete and not only commit the new files in implemented.
-
----
-
-## Step 9: Create Pull Request
-
-Create a pull request from `[branch-name]` to `main` with the following details:
-- Title: "Complete Feature: [Feature Title]"
-- Description: Include the completion summary generated in Step 7 and reference the spec folder and any outstanding issues.
-
----
+- Title: `[Feature title]`
+- Body: what/why/how summary, link to `specs/archive/[folder]/`,
+  validation verdict, outstanding Info findings, checklist (gate green,
+  validation PASS, docs consolidated, no out-of-scope changes)
 
 ## Output
 
 ```
-## Feature Complete
-
-**[Feature Title]** has been successfully implemented and validated.
-
-### Spec Location
-`specs/implemented/[folder-name]/`
-
-### Branch
-`[branch-name]`
-
-### Summary
-- Requirements: [X]/[X] implemented
-- Tests: [X] passing
-- Coverage: [Y]%
-
-### Jira
-[Updated to Done | No Jira integration]
+Feature complete: [title]
+Docs: [files updated] · Spec: specs/archive/[folder]/
+PR: [url]
 ```
-
----
-
-## Workflow Complete
-
-```
-Phase 1: Initiate — Branch and folder created
-Phase 2: Shape — Requirements gathered
-Phase 3: Specify — Spec document written
-Phase 4: Tasks — TDD task breakdown created
-Phase 5: Implement — TDD implementation done
-Phase 6: Validate — Implementation verified
-Phase 7: Complete — Feature finalized
-
-→ Ready for: Pull Request → Review → Merge
-```
-
----
-
-## Rollback (if needed)
-
-If completion was premature:
-
-```bash
-mv specs/implemented/[folder-name] specs/active/[folder-name]
-```
-
-Update spec.md frontmatter:
-- `status: active`
-- Remove `completed:` line
