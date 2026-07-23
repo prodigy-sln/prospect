@@ -1,7 +1,7 @@
 # Validation Calibration
 
-This file is injected verbatim into every review prompt. Edit it per project
-to tune what gets flagged and at what severity.
+These rules govern severity, evidence, volume, and skip decisions for this
+repository. Apply them exactly.
 
 ## Severity
 

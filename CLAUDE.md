@@ -69,7 +69,10 @@ downgrade only with explicit user confirmation.
 
 Scenario rules (`standards/global/scenario-guidelines.md`) and review
 calibration (`standards/global/validation-calibration.md`) are injected by
-the skills that need them.
+the skills that need them. The calibration file is meant to be tuned per
+project (severity definitions, skip rules, Minor cap) — its content must
+always read as direct reviewer instructions, since it lands verbatim in
+review prompts.
 
 ## Before Writing Code
 
