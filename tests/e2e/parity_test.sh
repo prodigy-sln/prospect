@@ -10,7 +10,11 @@
 #   each against their own empty directory, then compare:
 #     - The set of installed files (sorted)
 #     - The version stored in .prospect-version
-#     - The version and toolchains fields in .prospect-manifest.json
+#     - The version field in .prospect-manifest.json
+#
+#   install.ps1 is pointed at the locally built artifact via
+#   PROSPECT_ARTIFACT_PATH and an explicit -TargetDir so it never downloads a
+#   live release or writes into the working directory.
 #
 #   File list comparison ignores .prospect-manifest.json and .prospect-version
 #   because their exact checksum values are allowed to differ (the manifest
@@ -61,12 +65,16 @@ _build_real_artifact() {
 }
 
 # _source_install_sh
+# Loads install.sh's functions WITHOUT running main(). The _PROSPECT_SOURCED=1
+# guard is mandatory: install.sh runs main() when it is not sourced, and main()
+# resolves "latest", downloads the live release, and installs into $PWD — which
+# would scatter release files across the working directory.
 _source_install_sh() {
   local raw patched
   raw="$(cat "$INSTALL_SH")"
   patched="$(printf '%s\n' "$raw" \
     | sed 's/^[[:space:]]*exit[[:space:]]*[0-9]*[[:space:]]*$/: # exit neutralised/')"
-  eval "$patched" 2>/dev/null || true
+  _PROSPECT_SOURCED=1 eval "$patched" 2>/dev/null || true
 }
 
 # _extract_artifact <tarball> <version> <extract_dir>
@@ -130,14 +138,30 @@ test_e2e_parity_bash_and_powershell_produce_identical_files() {
   local source_dir="$tmp_dir/prospect-${version}"
   [[ -d "$source_dir" ]] || source_dir="$tmp_dir"
 
-  install_files "$source_dir" "$bash_target" "$version" "all" \
+  install_files "$source_dir" "$bash_target" "$version" \
     || _fail "bash install_files exited non-zero"
 
   # ── PowerShell install ──
-  # Pass the tarball path via PROSPECT_ARTIFACT_PATH so install.ps1 skips download.
+  # Point install.ps1 at the locally built .zip via PROSPECT_ARTIFACT_PATH so
+  # it neither downloads a live release nor shells out to tar (Expand-Archive
+  # handles .zip in-process), and pass an explicit -TargetDir so it installs
+  # into an isolated temp dir — never the working directory. On Windows/Git
+  # Bash, translate MSYS paths to Windows paths so PowerShell's Test-Path can
+  # resolve them.
+  local zipfile="${tarball%.tar.gz}.zip"
+  [[ -f "$zipfile" ]] \
+    || _skip "release .zip not produced (zip tool unavailable) — parity test skipped"
+
+  local ps_artifact="$zipfile"
+  local ps_target_arg="$ps_target"
+  if command -v cygpath >/dev/null 2>&1; then
+    ps_artifact="$(cygpath -w "$zipfile")"
+    ps_target_arg="$(cygpath -w "$ps_target")"
+  fi
+
   local ps_log="$TEST_DIR/ps.log"
-  pwsh -NonInteractive -NoProfile -File "$INSTALL_PS1" \
-    -All -Version "$version" \
+  PROSPECT_ARTIFACT_PATH="$ps_artifact" pwsh -NonInteractive -NoProfile -File "$INSTALL_PS1" \
+    -Version "$version" -TargetDir "$ps_target_arg" \
     2>"$ps_log" <<< "" \
     || {
       echo "    FAIL: install.ps1 exited non-zero — $(cat "$ps_log")" >&2

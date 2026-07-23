@@ -7,7 +7,7 @@
 #   FR-3.1 — first install copies all files without conflict checks
 #   FR-4.1 — .prospect-version written
 #   FR-4.2 — .prospect-manifest.json written with correct structure
-#   FR-5.4 — empty directories created (specs/active/, specs/implemented/, product/)
+#   FR-5.4 — empty directories created (specs/active/, specs/archive/, product/)
 #
 # Strategy:
 #   Build a real release artifact at script load time using build-release.sh.
@@ -72,12 +72,11 @@ _fail() {
   exit 1
 }
 
-# _run_fresh_install <target_dir> <version> <toolchain>
+# _run_fresh_install <target_dir> <version>
 # Extracts the tarball to a temp dir and calls install_files.
 _run_fresh_install() {
   local target_dir="$1"
   local version="$2"
-  local toolchain="$3"
 
   local tmp_dir
   tmp_dir="$(mktemp -d)"
@@ -86,7 +85,7 @@ _run_fresh_install() {
   local source_dir="$tmp_dir/prospect-${version}"
   [[ -d "$source_dir" ]] || source_dir="$tmp_dir"
 
-  install_files "$source_dir" "$target_dir" "$version" "$toolchain"
+  install_files "$source_dir" "$target_dir" "$version"
   rm -rf "$tmp_dir"
 }
 
@@ -94,16 +93,16 @@ _run_fresh_install() {
 
 # test_e2e_fresh_install_all_files_present
 #
-# Run a fresh install with toolchain=all into an empty directory and verify
-# that all expected files are present (FR-1.1, FR-1.3, FR-3.1).
+# Run a fresh install into an empty directory and verify that all expected
+# files are present (FR-1.1, FR-1.3, FR-3.1).
 test_e2e_fresh_install_all_files_present() {
   local target_dir="$TEST_DIR/target"
   mkdir -p "$target_dir"
 
-  _run_fresh_install "$target_dir" "v1.0.0" "all" \
+  _run_fresh_install "$target_dir" "v1.0.0" \
     || _fail "install_files exited non-zero on E2E fresh install"
 
-  # ── Claude toolchain files ──
+  # ── Claude Code files ──
   assert_dir_exists "$target_dir/.claude" \
     || _fail "E2E: .claude/ directory not present"
 
@@ -138,7 +137,7 @@ test_e2e_fresh_install_version_file_correct() {
   local target_dir="$TEST_DIR/target"
   mkdir -p "$target_dir"
 
-  _run_fresh_install "$target_dir" "v1.0.0" "all" \
+  _run_fresh_install "$target_dir" "v1.0.0" \
     || _fail "install_files exited non-zero"
 
   assert_file_exists "$target_dir/.prospect-version" \
@@ -149,13 +148,13 @@ test_e2e_fresh_install_version_file_correct() {
 
 # test_e2e_fresh_install_manifest_correct
 #
-# After a fresh install, .prospect-manifest.json must contain the version,
-# toolchains, and files fields (FR-4.2).
+# After a fresh install, .prospect-manifest.json must contain the version and
+# files fields, and must NOT carry a toolchains field (FR-4.2).
 test_e2e_fresh_install_manifest_correct() {
   local target_dir="$TEST_DIR/target"
   mkdir -p "$target_dir"
 
-  _run_fresh_install "$target_dir" "v1.0.0" "all" \
+  _run_fresh_install "$target_dir" "v1.0.0" \
     || _fail "install_files exited non-zero"
 
   assert_file_exists "$target_dir/.prospect-manifest.json" \
@@ -164,10 +163,11 @@ test_e2e_fresh_install_manifest_correct() {
     || _fail "E2E: manifest missing 'version' field"
   assert_file_contains "$target_dir/.prospect-manifest.json" "v1.0.0" \
     || _fail "E2E: manifest version value mismatch"
-  assert_file_contains "$target_dir/.prospect-manifest.json" '"toolchains"' \
-    || _fail "E2E: manifest missing 'toolchains' field"
   assert_file_contains "$target_dir/.prospect-manifest.json" '"files"' \
     || _fail "E2E: manifest missing 'files' field"
+  if grep -q '"toolchains"' "$target_dir/.prospect-manifest.json"; then
+    _fail "E2E: manifest must not contain a 'toolchains' field"
+  fi
 }
 
 # test_e2e_fresh_install_directories_created
@@ -177,13 +177,13 @@ test_e2e_fresh_install_directories_created() {
   local target_dir="$TEST_DIR/target"
   mkdir -p "$target_dir"
 
-  _run_fresh_install "$target_dir" "v1.0.0" "all" \
+  _run_fresh_install "$target_dir" "v1.0.0" \
     || _fail "install_files exited non-zero"
 
   assert_dir_exists "$target_dir/specs/active" \
     || _fail "E2E: specs/active/ directory not created"
-  assert_dir_exists "$target_dir/specs/implemented" \
-    || _fail "E2E: specs/implemented/ directory not created"
+  assert_dir_exists "$target_dir/specs/archive" \
+    || _fail "E2E: specs/archive/ directory not created"
   assert_dir_exists "$target_dir/product" \
     || _fail "E2E: product/ directory not created"
 }

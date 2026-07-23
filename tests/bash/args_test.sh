@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
 # Unit tests for install.sh argument parsing
-# Task T004 — covers FR-1.4, FR-2.5
+# Task T004 — covers FR-1.4
 #
-# Tests verify: --help, --claude, --copilot, --all, version argument,
-# default (no arguments), and unknown flags.
-#
-# Tests WILL FAIL until install.sh is implemented (RED phase).
+# Tests verify: --help, version argument, default (no arguments), unknown
+# flags, and that the removed toolchain flags are now rejected.
 
 set -euo pipefail
 
@@ -36,33 +34,6 @@ test_args_help_flag_prints_usage_and_exits_0() {
   assert_contains "$output" "usage" "--help output should contain usage information" || _fail "--help output should contain usage information"
 }
 
-# FR-2.5: --claude flag is recognised — must not print an unknown-flag error
-test_args_claude_flag_is_recognised() {
-  local output
-  local status=0
-  output=$(cd "$TEST_DIR" && PROSPECT_DRY_RUN=1 bash "$INSTALL_SH" --claude 2>&1) || status=$?
-  assert_not_contains "$output" "unknown option" "--claude should not produce an unknown-option error" || _fail "--claude produced an unknown-option error"
-  assert_not_contains "$output" "invalid option" "--claude should not produce an invalid-option error" || _fail "--claude produced an invalid-option error"
-}
-
-# FR-2.5: --copilot flag is recognised — must not print an unknown-flag error
-test_args_copilot_flag_is_recognised() {
-  local output
-  local status=0
-  output=$(cd "$TEST_DIR" && PROSPECT_DRY_RUN=1 bash "$INSTALL_SH" --copilot 2>&1) || status=$?
-  assert_not_contains "$output" "unknown option" "--copilot should not produce an unknown-option error" || _fail "--copilot produced an unknown-option error"
-  assert_not_contains "$output" "invalid option" "--copilot should not produce an invalid-option error" || _fail "--copilot produced an invalid-option error"
-}
-
-# FR-2.5: --all flag is recognised — must not print an unknown-flag error
-test_args_all_flag_is_recognised() {
-  local output
-  local status=0
-  output=$(cd "$TEST_DIR" && PROSPECT_DRY_RUN=1 bash "$INSTALL_SH" --all 2>&1) || status=$?
-  assert_not_contains "$output" "unknown option" "--all should not produce an unknown-option error" || _fail "--all produced an unknown-option error"
-  assert_not_contains "$output" "invalid option" "--all should not produce an invalid-option error" || _fail "--all produced an invalid-option error"
-}
-
 # FR-1.4: a semver version argument (e.g. v1.0.0) is accepted without error
 test_args_version_argument_is_accepted() {
   local output
@@ -72,13 +43,15 @@ test_args_version_argument_is_accepted() {
   assert_not_contains "$output" "invalid option" "version arg should not produce an invalid-option error" || _fail "version arg produced an invalid-option error"
 }
 
-# FR-1.4 + FR-2.5: combining a version argument with a toolchain flag is accepted
-test_args_version_and_toolchain_flag_combined_are_accepted() {
-  local output
-  local status=0
-  output=$(cd "$TEST_DIR" && PROSPECT_DRY_RUN=1 bash "$INSTALL_SH" v1.0.0 --claude 2>&1) || status=$?
-  assert_not_contains "$output" "unknown option" "version + --claude should not produce an unknown-option error" || _fail "version + --claude produced an unknown-option error"
-  assert_not_contains "$output" "invalid option" "version + --claude should not produce an invalid-option error" || _fail "version + --claude produced an invalid-option error"
+# The removed toolchain flags must now be rejected as unknown options.
+test_args_removed_toolchain_flags_are_unknown() {
+  for flag in --claude --copilot --all; do
+    local output
+    local status=0
+    output=$(cd "$TEST_DIR" && PROSPECT_DRY_RUN=1 bash "$INSTALL_SH" "$flag" 2>&1) || status=$?
+    assert_status 1 "$status" "$flag should exit with status 1" || _fail "$flag did not exit with status 1 (got $status)"
+    assert_contains "$output" "unknown" "$flag should be reported as an unknown option" || _fail "$flag was not reported as unknown"
+  done
 }
 
 # FR-1.4: running without arguments must not print a "version required" error —
