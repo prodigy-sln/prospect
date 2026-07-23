@@ -38,17 +38,17 @@
 [Stack-specific setup]
 
 # Start developing
-/sdd.start "your first feature"
+/sdd-start "your first feature"
 ```
 
 ## Development Workflow
 
 ```
-/sdd.start [feature]     # Create spec (phases 1-3)
-/sdd.tasks               # Generate TDD task breakdown
-/sdd.implement           # TDD implementation (Red-Green-Refactor)
-/sdd.validate            # Verify implementation matches spec
-/sdd.complete            # Finalize and move to implemented/
+/sdd-start [feature]     # Rigor, shaping, spec with audited scenarios
+/sdd-tasks               # Scenario-grouped task breakdown
+/sdd-implement           # TDD implementation
+/sdd-validate            # Quality gate + tier-scaled review
+/sdd-complete            # Consolidate docs, register, PR, finalize
 ```
 
 ## Links
