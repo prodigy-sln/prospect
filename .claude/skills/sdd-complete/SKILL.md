@@ -9,8 +9,8 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task
 
 ## Prerequisites
 
-- `validation-report.md` shows PASS (low tier: green gate note in the
-  mini-spec); at high+ the user has signed off
+- `validation-report.md` shows PASS (low tier: green gate note in
+  `spec.md`); at high+ the user has signed off
 - Working tree clean, all work committed
 
 If validation hasn't passed, run `/sdd-validate` — do not proceed.

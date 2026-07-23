@@ -27,9 +27,12 @@ frontmatter). Downgrade only with explicit user confirmation, recorded.
 
 Branch `feature/YYYY-MM-DD-short-name` (issue-driven:
 `feature/KEY-123-short-name`). Folder `specs/active/YYYY-MM-DD-short-name/`.
-At `low`, create a single spec file from `specs/_templates/spec-mini.template.md`
-and skip to Step 4; otherwise initialize from `specs/_templates/spec.template.md`
-plus an empty `requirements.md`.
+
+The spec file is ALWAYS `specs/active/[folder]/spec.md` — only the template
+differs by tier: at `low`, create it from
+`specs/_templates/spec-mini.template.md` and skip to Step 4; otherwise
+create it from `specs/_templates/spec.template.md` plus an empty
+`requirements.md`.
 
 ## Step 3: Shape
 

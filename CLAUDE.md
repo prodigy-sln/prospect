@@ -1,91 +1,85 @@
 # Prospect — Spec-Driven Development Framework
 
-This project uses the **Prospect** framework for **Spec-Driven Development (SDD)** with Test-Driven Development (TDD).
+This project uses **Prospect** for spec-driven development (SDD) with
+test-driven development.
 
-## Development Workflow
-
-All features follow this workflow:
+## Workflow
 
 ```
-/sdd-start [feature]  →  (/sdd-architect)  →  /sdd-tasks  →  /sdd-implement  →  /sdd-validate  →  /sdd-complete
+/sdd-start [feature]  →  (/sdd-discuss)  →  (/sdd-architect)  →  /sdd-tasks
+    →  /sdd-implement  →  /sdd-validate  →  /sdd-complete
 ```
+
+Every spec carries a rigor tier in its frontmatter. Each tier strictly adds
+to the previous one; escalate whenever new risk appears (record the reason),
+downgrade only with explicit user confirmation.
+
+| `rigor:` | Spec | Tasks | Implement | Validate | Discuss |
+|----------|------|-------|-----------|----------|---------|
+| low | mini-spec | — | inline TDD | gate script | — |
+| medium (default) | full + scenarios | scenario groups | test author + inline | gate + combined reviewer | — |
+| high | + architecture | same | same | gate + reviewer workflow, sign-off | — |
+| xhigh | same | same | same | same | parallel persona reviews |
+| max | same | same | same | same | negotiating agent team |
 
 ## Key Principles
 
-1. **Specs are source of truth** — Implement against specs, not imagination
-2. **TDD is non-negotiable** — Tests before implementation, always
-3. **Existing code first** — Search codebase before creating new components
-4. **Scope control** — Out of Scope section is binding
-5. **Human-in-the-loop** — User reviews spec and tasks before implementation
+1. **Specs are the source of truth.** Acceptance scenarios (EARS) are the
+   test contract: each scenario becomes exactly one test named with its ID.
+2. **TDD is non-negotiable.** Failing test output is displayed before any
+   implementation. At `medium+`, tests are authored and owned by the test
+   author — implementation never edits test files; disputes go to
+   arbitration.
+3. **`docs/` is as-built reality.** Completed specs consolidate into
+   `docs/` via `docs/INDEX.md` routing. Future concepts live in
+   `specs/active/` and `product/roadmap.md`, never in `docs/`.
+4. **Gates are deterministic.** `scripts/sdd-gate.*` must exit 0 at every
+   phase end, before validation, and before completion.
+5. **Out of Scope is binding.** Unspecced work is recorded, not built.
+6. **Phases resume from disk.** After spec or tasks approval, `/clear` is
+   safe and recommended — no phase depends on conversation history.
+
+## Commands
+
+| Command | Purpose |
+|---------|---------|
+| `/sdd-init-project` | New project: Q&A → structure, standards, gate, docs index |
+| `/sdd-onboard` | Existing project: detect toolchain → gate, docs index, UI standard |
+| `/sdd-clarify PROJ-123` | Resolve requirement ambiguities via issue tracker |
+| `/sdd-start [desc]` | Rigor, branch, shaping, spec, scenario audit, design exploration |
+| `/sdd-discuss` | Persona challenge of the plan (xhigh/max default; on demand anywhere) |
+| `/sdd-architect` | Binding architecture plan (high+ default) |
+| `/sdd-tasks` | Scenario-grouped task breakdown |
+| `/sdd-implement` | TDD implementation per the tier's engine |
+| `/sdd-validate` | Gate + tier-scaled review |
+| `/sdd-complete` | Consolidate into docs/, archive spec, open PR |
+| `/consolidate-docs [path]` | Merge any source material into docs/ |
+
+## Locations
+
+- Active specs: `specs/active/YYYY-MM-DD-name/` · Archive: `specs/archive/`
+- Templates: `specs/_templates/` · Living docs: `docs/` (routed by `INDEX.md`)
+- Quality gate: `scripts/sdd-gate.*`
 
 ## Standards
-
-Follow the standards in:
 
 @standards/global/code-quality.md
 @standards/global/testing.md
 @standards/global/git-workflow.md
 
-## Workflow Reference
-
-```
-PROJECT SETUP (Choose One)
-  /sdd-init-project  — New project: Q&A → generate structure + standards
-  /sdd-onboard       — Existing project: analyze codebase → generate standards
-
-REQUIREMENTS CLARIFICATION (before /sdd-start)
-  /sdd-clarify [issue-key]     — Gather requirements via issue tracker comments
-                                  Works with Atlassian/Linear/Notion MCP or user interaction
-
-FEATURE DEVELOPMENT
-  /sdd-start [desc]  — Phases 1-3: branch + requirements + specification
-      Phase 1: Initiate (branch + folder)
-      Phase 2: Shape (codebase discovery + questions)
-      ► /sdd-discuss  — (Optional) Stakeholder agent team discussion
-      Phase 3: Specify (writes spec.md, incorporating discussion)
-      ↓ [User reviews spec]
-  /sdd-architect     — (Optional) Architecture planning before tasks
-      ↓ [User reviews architecture]
-  /sdd-tasks         — Phase 4: TDD-ordered task breakdown
-      ↓ [User reviews tasks]
-  /sdd-implement     — Phase 5: TDD implementation (Red-Green-Refactor)
-      ↓
-  /sdd-validate      — Phase 6: verify implementation vs spec (parallel reviewers)
-      ↓
-  /sdd-complete      — Phase 7: finalize, move spec to implemented/
-
-GRANULAR CONTROL (instead of /sdd-start)
-  /sdd-initiate → /sdd-shape → /sdd-specify
-
-ISSUE-DRIVEN (unguided)
-  /sdd-start-issue [issue-id]  — Full pipeline from issue to implementation
-```
-
-## Specs Location
-
-- Active specs: `specs/active/YYYY-MM-DD-feature-name/`
-- Completed specs: `specs/implemented/`
-- Templates: `specs/_templates/`
+Scenario rules (`standards/global/scenario-guidelines.md`) and review
+calibration (`standards/global/validation-calibration.md`) are injected by
+the skills that need them.
 
 ## Before Writing Code
 
-1. Check if a spec exists for this feature
-2. If no spec, suggest using `/sdd-start`
-3. Follow the task breakdown in `tasks.md`
-4. Reference requirements (FR-X.X) from the spec
-
-## Jira Integration
-
-When Atlassian MCP is available:
-- Start from Jira issues: `/sdd-start PROJ-123`
-- Auto-fetch issue details and attachments
-- Update issue status on completion
-- Graceful fallback if unavailable
+1. A spec must exist — otherwise suggest `/sdd-start`.
+2. Follow `tasks.md`; reference scenario IDs (FR-x.y-Sz) in tests and
+   commits.
+3. At `medium+`, never edit test files from the implementation context —
+   send disputes to the test author.
 
 ## Tech Stack
 
-<!-- Updated by /sdd-init-project or /sdd-onboard -->
-- Backend: [Not configured]
-- Frontend: [Not configured]
-- Database: [Not configured]
-- Testing: [Not configured]
+- Backend / Frontend / Database / Testing: [Not configured — run
+  `/sdd-onboard` or `/sdd-init-project`]

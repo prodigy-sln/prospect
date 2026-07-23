@@ -13,7 +13,7 @@ Run `scripts/sdd-gate.*`. Non-zero exit = validation FAILED: report the
 script output verbatim and stop — no review runs on a red gate.
 
 **Low tier**: a green gate is the whole validation. Append a dated
-validation note to the mini-spec and finish.
+validation note to `spec.md` and finish.
 
 ## Step 2: Manifest
 

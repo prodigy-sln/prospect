@@ -15,7 +15,7 @@ Read: `specs/active/[folder]/spec.md`, `tasks.md` (medium+),
 
 ## Low Tier — single context
 
-Work scenario by scenario from the mini-spec:
+Work scenario by scenario from `spec.md`:
 
 1. Write the failing test yourself (scenario ID in the test name).
 2. Run it and **display the failing output** — writing implementation
