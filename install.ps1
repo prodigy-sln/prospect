@@ -5,16 +5,13 @@
 #
 # Usage:
 #   irm https://raw.githubusercontent.com/prodigy-sln/prospect/main/install.ps1 | iex
-#   .\install.ps1 [-Claude] [-Copilot] [-All] [-Help] [-Version <tag>]
+#   .\install.ps1 [-Help] [-Version <tag>]
 #
 # Test injection:
 #   Set $env:PROSPECT_ARTIFACT_PATH to a local .tar.gz path to bypass download.
 
 [CmdletBinding()]
 param(
-    [switch]$Claude,
-    [switch]$Copilot,
-    [switch]$All,
     [switch]$Help,
     [switch]$DryRun,
     [string]$Version = "",
@@ -35,9 +32,6 @@ usage: install.ps1 [OPTIONS] [-Version <tag>]
 Install or update the Prospect SDD framework in the current directory.
 
 OPTIONS:
-  -Claude     Install Claude Code toolchain only
-  -Copilot    Install VS Code Copilot toolchain only
-  -All        Install both toolchains (default)
   -Help       Print this help message and exit
 
 VERSION:
@@ -47,8 +41,6 @@ VERSION:
 EXAMPLES:
   .\install.ps1
   .\install.ps1 -Version v1.2.0
-  .\install.ps1 -Claude
-  .\install.ps1 -Version v1.2.0 -Claude
 "@
 }
 
@@ -178,66 +170,20 @@ function Invoke-DownloadRelease {
     }
 }
 
-# ── Toolchain selection ────────────────────────────────────────────────────────
-
-# Select-Toolchain <targetDir> <cliToolchain>
-# Priority:
-#   1. CLI flag ($cliToolchain non-empty) -> use it
-#   2. Existing manifest -> derive from toolchains array
-#   3. Interactive stdin (terminal) -> prompt user
-#   4. Non-interactive default -> "all"
-function Select-Toolchain {
-    param(
-        [string]$TargetDir,
-        [string]$CliToolchain = ""
-    )
-
-    # 1. CLI flag wins unconditionally.
-    if ($CliToolchain) {
-        return $CliToolchain
-    }
-
-    # 2. Manifest-based default.
-    $manifest = Join-Path $TargetDir ".prospect-manifest.json"
-    if (Test-Path $manifest) {
-        $content = Get-Content -LiteralPath $manifest -Raw -ErrorAction SilentlyContinue
-        if ($content) {
-            $hasClaude  = $content -match '"claude"'
-            $hasCopilot = $content -match '"copilot"'
-            if ($hasClaude -and $hasCopilot) { return "all" }
-            elseif ($hasClaude)              { return "claude" }
-            elseif ($hasCopilot)             { return "copilot" }
-        }
-    }
-
-    # 3. Interactive prompt (only when stdin is a terminal and not piped).
-    $isInteractive = [Environment]::UserInteractive -and [Console]::IsInputRedirected -eq $false
-    if ($isInteractive) {
-        Write-Host "Select toolchain to install:" -ForegroundColor Cyan
-        Write-Host "  1) claude"
-        Write-Host "  2) copilot"
-        Write-Host "  3) all (default)"
-        $choice = Read-Host "Choice [3]"
-        switch ($choice.Trim()) {
-            "1" { return "claude" }
-            "2" { return "copilot" }
-            default { return "all" }
-        }
-    }
-
-    # 4. Non-interactive default.
-    return "all"
-}
-
 # ── File categorization ────────────────────────────────────────────────────────
 
 # Get-FileCategory <relativePath>
-# Returns: "framework" | "customizable" | "user-content" | "template"
+# Returns: "framework" | "customizable" | "user-content" | "template" | "install-once"
 function Get-FileCategory {
     param([string]$RelativePath)
 
     # Normalise to forward slashes for consistent matching.
     $p = $RelativePath -replace '\\', '/'
+
+    # Install-once: seeded when absent, never overwritten (spec registry).
+    if ($p -eq "specs/REGISTRY.md") {
+        return "install-once"
+    }
 
     # Template files.
     if ($p -eq "product/mission.template.md" -or $p -eq "product/roadmap.template.md") {
@@ -245,21 +191,20 @@ function Get-FileCategory {
     }
 
     # Framework-managed files.
-    if ($p -match '^\.claude/(agents|skills)/' -or
-        $p -match '^\.github/(agents|prompts|instructions)/' -or
+    if ($p -match '^\.claude/(agents|skills|workflows)/' -or
         $p -match '^specs/_templates/') {
         return "framework"
     }
 
     # User-customizable files.
     if ($p -match '^standards/global/[^/]+\.md$' -or
-        $p -eq "CLAUDE.md" -or
-        $p -eq ".github/copilot-instructions.md") {
+        $p -eq "CLAUDE.md") {
         return "customizable"
     }
 
     # User-created content.
-    if ($p -match '^specs/(active|implemented)/' -or
+    if ($p -match '^specs/(active|archive)/' -or
+        $p -match '^docs/' -or
         $p -eq "product/mission.md" -or
         $p -eq "product/roadmap.md") {
         return "user-content"
@@ -281,19 +226,14 @@ function Get-Sha256 {
 
 # ── Manifest read/write ────────────────────────────────────────────────────────
 
-# Write-Manifest <targetDir> <version> <toolchains> <installedFiles[]>
+# Write-Manifest <targetDir> <version> <installedFiles[]>
 # Creates .prospect-manifest.json in targetDir (FR-4.2).
 function Write-Manifest {
     param(
         [string]$TargetDir,
         [string]$ManifestVersion,
-        [string]$Toolchains,
         [string[]]$InstalledFiles
     )
-
-    # Build toolchains JSON array.
-    $tcList = ($Toolchains -replace ',', ' ') -split '\s+' | Where-Object { $_ }
-    $tcJson = ($tcList | ForEach-Object { "`"$_`"" }) -join ','
 
     # Build files JSON object with per-file checksums.
     $fileEntries = @()
@@ -307,7 +247,7 @@ function Write-Manifest {
     }
     $filesJson = $fileEntries -join ','
 
-    $json = "{`"version`":`"$ManifestVersion`",`"toolchains`":[$tcJson],`"files`":{$filesJson}}"
+    $json = "{`"version`":`"$ManifestVersion`",`"files`":{$filesJson}}"
     $manifestPath = Join-Path $TargetDir ".prospect-manifest.json"
 
     # Write with UTF-8 without BOM for cross-platform compatibility.
@@ -359,37 +299,15 @@ function Write-VersionFile {
     [System.IO.File]::WriteAllText($versionPath, "$InstallVersion`n", [System.Text.UTF8Encoding]::new($false))
 }
 
-# ── Toolchain filter helper ────────────────────────────────────────────────────
-
-# Test-IncludeByToolchain <relativePath> <toolchain>
-# Returns $true if the file should be included for the selected toolchain.
-function Test-IncludeByToolchain {
-    param(
-        [string]$RelativePath,
-        [string]$Toolchain
-    )
-    $p = $RelativePath -replace '\\', '/'
-
-    if ($Toolchain -eq "claude") {
-        if ($p -match '^\.github/') { return $false }
-    }
-    elseif ($Toolchain -eq "copilot") {
-        if ($p -match '^\.claude/') { return $false }
-        if ($p -eq "CLAUDE.md")     { return $false }
-    }
-    return $true
-}
-
 # ── Install orchestration ──────────────────────────────────────────────────────
 
-# Install-Files <sourceDir> <targetDir> <version> <toolchain>
+# Install-Files <sourceDir> <targetDir> <version>
 # Orchestrates the full install/update flow (FR-3.1 – FR-7.3).
 function Install-Files {
     param(
         [string]$SourceDir,
         [string]$TargetDir,
-        [string]$InstallVersion,
-        [string]$Toolchain
+        [string]$InstallVersion
     )
 
     # FR-7.1: Warn if not a git repo, but continue.
@@ -412,10 +330,10 @@ function Install-Files {
                 $rel = $rel -replace '\\', '/'
 
                 if ($_.Name -eq ".gitkeep") { return }
-                if (-not (Test-IncludeByToolchain -RelativePath $rel -Toolchain $Toolchain)) { return }
 
                 $category = Get-FileCategory -RelativePath $rel
                 if ($category -eq "user-content") { return }
+                if ($category -eq "install-once") { return }
 
                 $targetFile = Join-Path $TargetDir $rel
                 if (-not (Test-Path -LiteralPath $targetFile)) {
@@ -441,7 +359,7 @@ function Install-Files {
     $conflictFiles  = [System.Collections.Generic.List[string]]::new()
 
     # FR-5.4: Ensure required directories exist.
-    @("specs/active", "specs/implemented", "product") | ForEach-Object {
+    @("specs/active", "specs/archive", "product") | ForEach-Object {
         $dir = Join-Path $TargetDir $_
         if (-not (Test-Path $dir)) {
             New-Item -ItemType Directory -Path $dir -Force | Out-Null
@@ -457,9 +375,6 @@ function Install-Files {
         # Skip .gitkeep placeholder files.
         if ($srcFile.Name -eq ".gitkeep") { return }
 
-        # Apply toolchain filter (FR-2.2, FR-2.3).
-        if (-not (Test-IncludeByToolchain -RelativePath $rel -Toolchain $Toolchain)) { return }
-
         $category   = Get-FileCategory -RelativePath $rel
         $targetFile = Join-Path $TargetDir $rel
 
@@ -471,15 +386,19 @@ function Install-Files {
             return
         }
 
-        # FR-3.5: copilot-instructions.md pre-existing without manifest entry.
-        if ($rel -eq ".github/copilot-instructions.md" -and
-            (Test-Path -LiteralPath $targetFile) -and (-not $manifestExists)) {
-            $manifestSum = Read-ManifestChecksum -TargetDir $TargetDir -RelativePath $rel
-            if ([string]::IsNullOrEmpty($manifestSum)) {
-                Write-Host "Note: .github/copilot-instructions.md already exists with existing content. Please merge manually with the Prospect version." -ForegroundColor Yellow
+        # install-once — seed the registry when absent, never overwrite it.
+        if ($category -eq "install-once") {
+            if (Test-Path -LiteralPath $targetFile) {
                 $skippedFiles.Add($rel)
                 return
             }
+            $parentDir = Split-Path -Path $targetFile -Parent
+            if (-not (Test-Path $parentDir)) {
+                New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
+            }
+            Copy-Item -LiteralPath $srcFile.FullName -Destination $targetFile -Force
+            $installedFiles.Add($rel)
+            return
         }
 
         # Ensure parent directory exists.
@@ -539,6 +458,7 @@ function Install-Files {
             foreach ($m in $matches) {
                 $prevFile = $m.Groups[1].Value
                 # Skip JSON keys that are metadata, not file paths.
+                # "toolchains" is tolerated for manifests written by older versions.
                 if ($prevFile -eq "version" -or $prevFile -eq "toolchains") { continue }
                 if ($manifestFiles.Contains($prevFile)) { continue }
                 $fullPath = Join-Path $TargetDir $prevFile
@@ -551,11 +471,11 @@ function Install-Files {
 
     # Write manifest and version file (FR-4.1, FR-4.2).
     Write-Manifest -TargetDir $TargetDir -ManifestVersion $InstallVersion `
-        -Toolchains $Toolchain -InstalledFiles $manifestFiles.ToArray()
+        -InstalledFiles $manifestFiles.ToArray()
     Write-VersionFile -TargetDir $TargetDir -InstallVersion $InstallVersion
 
     # FR-3.4: Print summary.
-    Write-Host "Prospect $InstallVersion installed (toolchain: $Toolchain)."
+    Write-Host "Prospect $InstallVersion installed."
     if ($installedFiles.Count -gt 0) {
         Write-Host "  Installed: $($installedFiles.Count) file(s)."
     }
@@ -582,16 +502,9 @@ function Main {
         exit 0
     }
 
-    # Determine CLI toolchain override.
-    $cliToolchain = ""
-    if ($Claude -and $Copilot) { $cliToolchain = "all" }
-    elseif ($Claude)           { $cliToolchain = "claude" }
-    elseif ($Copilot)          { $cliToolchain = "copilot" }
-    elseif ($All)              { $cliToolchain = "all" }
-
     # Allow tests to verify parsing without triggering network/install.
     if ($DryRun) {
-        Write-Host "TOOLCHAIN=$cliToolchain VERSION=$Version"
+        Write-Host "VERSION=$Version"
         return
     }
 
@@ -604,9 +517,6 @@ function Main {
 
     # Determine target directory.
     $effectiveTargetDir = if ($TargetDir) { $TargetDir } else { (Get-Location).Path }
-
-    # Resolve toolchain.
-    $toolchain = Select-Toolchain -TargetDir $effectiveTargetDir -CliToolchain $cliToolchain
 
     # Download and extract release to temp directory.
     $tmpDir = [System.IO.Path]::GetTempPath() + [System.Guid]::NewGuid().ToString()
@@ -625,7 +535,7 @@ function Main {
         }
 
         $result = Install-Files -SourceDir $sourceDir -TargetDir $effectiveTargetDir `
-            -InstallVersion $resolvedVersion -Toolchain $toolchain
+            -InstallVersion $resolvedVersion
         if (-not $result) {
             exit 1
         }

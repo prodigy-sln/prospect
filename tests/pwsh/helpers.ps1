@@ -56,9 +56,8 @@ function Assert-DirExists([string]$Path, [string]$Message) {
 function New-MockArtifact([string]$DestDir, [string]$Version = "v1.0.0") {
     $root = Join-Path $DestDir "prospect-$Version"
     $dirs = @(
-        ".claude/agents", ".claude/skills/sdd-start",
-        ".github/agents", ".github/prompts", ".github/instructions",
-        "standards/global", "specs/_templates", "specs/active", "specs/implemented",
+        ".claude/agents", ".claude/skills/sdd-start", ".claude/workflows",
+        "standards/global", "specs/_templates", "specs/active", "specs/archive",
         "product"
     )
     foreach ($d in $dirs) { New-Item -ItemType Directory -Path (Join-Path $root $d) -Force | Out-Null }
@@ -66,16 +65,14 @@ function New-MockArtifact([string]$DestDir, [string]$Version = "v1.0.0") {
     $files = @{
         ".claude/agents/sdd-architect.md" = "# Architect Agent"
         ".claude/skills/sdd-start/SKILL.md" = "---"
-        ".github/agents/sdd-start.agent.md" = "# Start Agent"
-        ".github/prompts/sdd-start.prompt.md" = "---"
-        ".github/instructions/sdd-context.md" = "# Context"
-        ".github/copilot-instructions.md" = "# Copilot Instructions"
+        ".claude/workflows/sdd-validate.js" = "// validate"
         "standards/global/code-quality.md" = "# Code Quality"
         "standards/global/testing.md" = "# Testing"
         "standards/global/git-workflow.md" = "# Git Workflow"
         "CLAUDE.md" = "# CLAUDE.md template"
         "specs/_templates/spec.template.md" = "# Spec Template"
         "specs/_templates/tasks.template.md" = "# Tasks Template"
+        "specs/REGISTRY.md" = "# Spec Registry"
         "product/mission.template.md" = "# Mission Template"
         "product/roadmap.template.md" = "# Roadmap Template"
         "README.md" = "# README"
@@ -84,7 +81,7 @@ function New-MockArtifact([string]$DestDir, [string]$Version = "v1.0.0") {
         [System.IO.File]::WriteAllText((Join-Path $root $kv.Key), $kv.Value)
     }
     "" | Set-Content (Join-Path $root "specs/active/.gitkeep")
-    "" | Set-Content (Join-Path $root "specs/implemented/.gitkeep")
+    "" | Set-Content (Join-Path $root "specs/archive/.gitkeep")
 
     return $root
 }

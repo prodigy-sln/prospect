@@ -1,163 +1,61 @@
 ---
 name: sdd-onboard
-description: Onboard an existing project to Prospect SDD framework by analyzing codebase and discovering standards
+description: "Onboard an existing project: detect the toolchain, generate the quality gate, docs index, and UI design standard"
 argument-hint: ""
 disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task
 ---
 
-# Onboard Existing Project
+# Onboard an Existing Project
 
-Analyze an existing codebase to discover conventions, patterns, and standards, then generate matching Prospect SDD configuration.
+Analyze the codebase and generate the project-specific pieces the SDD
+pipeline depends on. Never overwrite an existing generated file without
+showing the user a diff first.
 
-## Overview
+## Step 1: Detect
 
-This command:
-1. Delegates codebase scanning to an Explore subagent (preserves main context)
-2. Presents discovery report with detected tech stack, conventions, and tools
-3. Generates standards files matching the existing codebase
-4. Only asks clarifying questions when inference is unclear
+Delegate codebase analysis to an Explore subagent; request a compact
+report: languages and frameworks; formatter, linter, type checker, test
+runner and their config files; test layout and naming; coverage tooling;
+UI stack and design assets (tokens, theme files, component library,
+stylesheets); existing docs locations.
 
----
+## Step 2: Quality Gate
 
-## Step 1: Delegate Codebase Discovery (via Explore subagent)
+Generate `scripts/sdd-gate.sh` and/or `scripts/sdd-gate.ps1` from the
+detected toolchain, running in order: formatter check (no auto-fix), linter
+(zero warnings), type check, full test suite, coverage threshold from
+`standards/global/testing.md`. Any failure → non-zero exit and a compact
+failure list, no prose. Run the gate once to prove it works; a red result
+on the existing codebase is a finding for the user, not a generation error.
 
-Use the **Task tool** with `subagent_type: Explore` to scan the codebase. This preserves context on the main conversation by offloading heavy file scanning to an isolated subagent.
+## Step 3: Docs Index
 
-### Launch Explore Subagent
+If `docs/INDEX.md` is missing, generate it from
+`specs/_templates/docs-index.template.md`: register existing documentation
+files with purpose per file, and write a routing guide from the project's
+topics. `docs/` holds as-built documentation only.
 
-Delegate with this prompt:
+## Step 4: UI Design Standard (UI projects)
 
-```
-Perform a comprehensive codebase analysis for onboarding to the Prospect SDD framework.
-Return a structured discovery report covering ALL of the following sections:
+Generate `standards/global/ui-design.md` from the real app: design-token
+source of truth, component library and reuse rules ("extend existing
+components before creating new"), typography and spacing scale, color
+usage, tone, accessibility bar, and explicit anti-generic guidance (no
+template defaults, no stock gradients). Extract from code and assets;
+ask the user only what the code cannot show (brand intent, tone).
 
-### 1. Tech Stack Detection
-Search for project files and report what you find:
-- Backend: .sln/.csproj (→ .NET), package.json with express/fastify/nest (→ Node.js), requirements.txt with django/fastapi/flask (→ Python), pom.xml/build.gradle (→ Java), go.mod (→ Go)
-- Frontend: react/react-dom (→ React), vue (→ Vue.js), @angular/core (→ Angular), svelte (→ Svelte), Vaadin dependencies (→ Vaadin)
-- Database: connection strings, ORM configs, database driver dependencies
-- For each detection, note the version where identifiable and confidence level (High/Medium/Low)
+## Step 5: Project Instructions
 
-### 2. Code Convention Discovery
-- Naming: Analyze 5-10 source files for class, method, variable, file naming styles
-- Organization: Is the folder structure feature-based, layer-based, or hybrid?
-- Patterns: Search for repository pattern, service layer, dependency injection, CQRS, and other architectural patterns
-
-### 3. Quality Tools Discovery
-Search for config files: .eslintrc*, .prettierrc*, .editorconfig, stylecop.json, .pre-commit-config.yaml, tslint.json, .stylelintrc*, and any linting/formatting configs
-
-### 4. Testing Discovery
-- Test framework: detect from project files (xUnit, NUnit, Jest, Vitest, pytest, JUnit, etc.)
-- Test naming conventions: analyze existing test files for naming patterns
-- Test organization: how are tests structured (co-located, separate test/ folder, etc.)
-- Assertion style: what assertion library is used
-- Coverage configuration: any coverage tools configured
-
-### 5. Documentation Discovery
-- Read README.md for project description, setup instructions, architecture notes
-- Check for CONTRIBUTING.md, CHANGELOG.md, ADRs
-- Note any inline documentation conventions observed
-
-### 6. Integration Discovery
-- CI/CD: search for .github/workflows/, .gitlab-ci.yml, Jenkinsfile, azure-pipelines.yml
-- Git workflow: check branch naming from `git branch -a`, commit message patterns from recent commits
-- Check for existing CLAUDE.md, .github/copilot-instructions.md, or similar AI tool configs
-
-Format the report as a single markdown document with clear section headers and tables.
-```
-
-### Process Discovery Report
-
-The Explore subagent returns a structured report. Use this report for all subsequent steps — do NOT re-scan the codebase.
-
----
-
-## Step 2: Generate Discovery Report
-
-Present findings to user before generating standards:
-
-```markdown
-## Codebase Analysis Report
-
-### Tech Stack Detected
-| Layer | Technology | Confidence |
-|-------|------------|------------|
-| Backend | [detected] | High/Medium/Low |
-| Frontend | [detected] | High/Medium/Low |
-| Database | [detected] | High/Medium/Low |
-| Testing | [detected] | High/Medium/Low |
-
-### Clarifications Needed
-[Only if confidence is Low or unclear]
-```
-
----
-
-## Step 3: Create Folders and Files
-
-```bash
-mkdir -p specs/active specs/implemented specs/_templates
-mkdir -p standards/global
-mkdir -p product
-```
-
----
-
-## Step 4: Update CLAUDE.md
-
-Create or update `CLAUDE.md` with discovered tech stack. If `.github/copilot-instructions.md` exists, update it too.
-
----
-
-## Step 5: Generate Standards Files
-
-Generate `standards/global/code-quality.md` and `standards/global/testing.md` matching the discovered patterns.
-
-Generate `standards/global/git-workflow.md` based on observed branch and commit conventions.
-
----
-
-## Step 6: Generate Mission (Optional)
-
-If README contains project description, generate `product/mission.md`.
-
----
+Update `CLAUDE.md` tech-stack section with the detected stack and the gate
+script path. Fill `standards/global/validation-calibration.md` skip rules
+with project specifics (generated dirs, vendored code).
 
 ## Output
 
 ```
-## Prospect Onboarding Complete
-
-**Project**: [name]
-
-### Discovered Tech Stack
-| Layer | Technology |
-|-------|------------|
-| Backend | [tech] |
-| Frontend | [tech] |
-| Database | [tech] |
-| Testing | [framework] |
-
-### Files Generated
-- `CLAUDE.md` — Project instructions for Claude Code
-- `standards/global/code-quality.md` — Based on codebase analysis
-- `standards/global/testing.md` — Based on test patterns found
-- `standards/global/git-workflow.md` — Based on git history
-- `specs/active/` — For specs in development
-- `specs/implemented/` — For completed specs
-
-### Next Steps
-1. Review generated standards
-2. Commit configuration files
-3. Start your first feature: `/sdd-start [description]`
+Onboarded.
+Gate: scripts/sdd-gate.* [green/red on current codebase]
+Docs index: [generated/existing] · UI standard: [generated/n-a]
+Next: /sdd-start [feature]
 ```
-
----
-
-## Notes
-
-- This agent infers from code; always review generated standards
-- Low-confidence inferences are marked for user review
-- Existing linting/formatting configs are respected and documented
-- The goal is to match existing conventions, not impose new ones

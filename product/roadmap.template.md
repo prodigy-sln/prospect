@@ -1,6 +1,6 @@
 # Product Roadmap
 
-> **Note**: This roadmap is optional. If using Jira or another external tool for roadmap management, you can delete this file and reference tickets directly via `/sdd.start PROJ-123`.
+> **Note**: This roadmap is optional. If using Jira or another external tool for roadmap management, you can delete this file and reference tickets directly via `/sdd-start PROJ-123`.
 
 ## Overview
 
@@ -25,7 +25,7 @@
 ### To start a feature from this roadmap:
 
 ```
-/sdd.start [feature name from above]
+/sdd-start [feature name from above]
 ```
 
 ---
@@ -57,12 +57,13 @@ Features considered but not yet scheduled:
 
 | Feature | Completed | Spec |
 |---------|-----------|------|
-| [Feature] | YYYY-MM-DD | `specs/implemented/YYYY-MM-DD-name/` |
+| [Feature] | YYYY-MM-DD | `[spec folder name]` — see `specs/REGISTRY.md` |
 
 ---
 
 ## Notes
 
 - Priorities: P0 = Critical, P1 = High, P2 = Medium, P3 = Low
-- Features move to specs via `/sdd.start`
-- Completed specs are in `specs/implemented/`
+- Features move to specs via `/sdd-start`
+- Completed specs are recorded in `specs/REGISTRY.md` (spec folders are
+  removed at finalize; kept under `specs/archive/` only in archive mode)

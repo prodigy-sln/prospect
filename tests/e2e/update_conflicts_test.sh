@@ -69,13 +69,12 @@ _fail() {
   exit 1
 }
 
-# _install_version <target_dir> <tarball> <version> <toolchain>
+# _install_version <target_dir> <tarball> <version>
 # Extracts the given tarball and calls install_files against target_dir.
 _install_version() {
   local target_dir="$1"
   local tarball="$2"
   local version="$3"
-  local toolchain="$4"
 
   export _E2E_CURRENT_TARBALL="$tarball"
 
@@ -92,7 +91,7 @@ _install_version() {
   # Export so callers can mutate files before install.
   export _E2E_STAGE_DIR="$stage_dir"
 
-  install_files "$stage_dir" "$target_dir" "$version" "$toolchain"
+  install_files "$stage_dir" "$target_dir" "$version"
 
   rm -rf "$tmp_dir"
   unset _E2E_CURRENT_TARBALL
@@ -110,7 +109,7 @@ test_e2e_update_modified_standards_creates_incoming() {
   mkdir -p "$target_dir"
 
   # Fresh install v1.
-  _install_version "$target_dir" "$E2E_TARBALL_V1" "v1.0.0" "all" \
+  _install_version "$target_dir" "$E2E_TARBALL_V1" "v1.0.0" \
     || _fail "fresh install v1.0.0 exited non-zero"
 
   # Simulate user modifying a standards file.
@@ -132,7 +131,7 @@ test_e2e_update_modified_standards_creates_incoming() {
   printf '\n# Framework update marker for v2\n' >> "$source_v2/standards/global/code-quality.md"
 
   local output
-  output="$(install_files "$source_v2" "$target_dir" "v2.0.0" "all" 2>&1)" \
+  output="$(install_files "$source_v2" "$target_dir" "v2.0.0" 2>&1)" \
     || _fail "update to v2.0.0 exited non-zero"
   rm -rf "$tmp_dir"
 
@@ -170,7 +169,7 @@ test_e2e_update_unmodified_files_overwritten() {
   download_release "v1.0.0" "$tmp_v1"
   local source_v1="$tmp_v1/prospect-v1.0.0"
   [[ -d "$source_v1" ]] || source_v1="$tmp_v1"
-  install_files "$source_v1" "$target_dir" "v1.0.0" "all" \
+  install_files "$source_v1" "$target_dir" "v1.0.0" \
     || _fail "fresh install v1.0.0 exited non-zero"
   rm -rf "$tmp_v1"
 
@@ -192,7 +191,7 @@ test_e2e_update_unmodified_files_overwritten() {
     rel_path="${agent_file#$source_v2/}"
     printf '\n# v2 update marker\n' >> "$agent_file"
 
-    install_files "$source_v2" "$target_dir" "v2.0.0" "all" \
+    install_files "$source_v2" "$target_dir" "v2.0.0" \
       || _fail "update to v2.0.0 exited non-zero"
     rm -rf "$tmp_v2"
 
@@ -223,7 +222,7 @@ test_e2e_update_user_content_untouched() {
   download_release "v1.0.0" "$tmp_v1"
   local source_v1="$tmp_v1/prospect-v1.0.0"
   [[ -d "$source_v1" ]] || source_v1="$tmp_v1"
-  install_files "$source_v1" "$target_dir" "v1.0.0" "all" \
+  install_files "$source_v1" "$target_dir" "v1.0.0" \
     || _fail "fresh install v1.0.0 exited non-zero"
   rm -rf "$tmp_v1"
 
@@ -237,7 +236,7 @@ test_e2e_update_user_content_untouched() {
   download_release "v2.0.0" "$tmp_v2"
   local source_v2="$tmp_v2/prospect-v2.0.0"
   [[ -d "$source_v2" ]] || source_v2="$tmp_v2"
-  install_files "$source_v2" "$target_dir" "v2.0.0" "all" \
+  install_files "$source_v2" "$target_dir" "v2.0.0" \
     || _fail "update to v2.0.0 exited non-zero"
   rm -rf "$tmp_v2"
 

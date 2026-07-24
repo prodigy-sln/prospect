@@ -39,24 +39,9 @@ STAGE="$WORK_DIR/$ARCHIVE_NAME"
 
 mkdir -p "$STAGE"
 
-# .claude/ — all agents and skills
+# .claude/ — all agents, skills, and workflows
 if [[ -d "$REPO_ROOT/.claude" ]]; then
   cp -r "$REPO_ROOT/.claude" "$STAGE/.claude"
-fi
-
-# .github/ — agents, prompts, instructions, copilot-instructions.md
-# Deliberately excludes workflows/ and any other .github content that is
-# part of the Prospect repo's own CI, not the distributable framework.
-if [[ -d "$REPO_ROOT/.github" ]]; then
-  mkdir -p "$STAGE/.github"
-  for subdir in agents prompts instructions; do
-    if [[ -d "$REPO_ROOT/.github/$subdir" ]]; then
-      cp -r "$REPO_ROOT/.github/$subdir" "$STAGE/.github/$subdir"
-    fi
-  done
-  if [[ -f "$REPO_ROOT/.github/copilot-instructions.md" ]]; then
-    cp "$REPO_ROOT/.github/copilot-instructions.md" "$STAGE/.github/copilot-instructions.md"
-  fi
 fi
 
 # standards/global/
@@ -65,18 +50,24 @@ if [[ -d "$REPO_ROOT/standards/global" ]]; then
   cp -r "$REPO_ROOT/standards/global" "$STAGE/standards/global"
 fi
 
-# specs/_templates/ only — no active or implemented content
+# specs/_templates/ only — no active or archived content
 if [[ -d "$REPO_ROOT/specs/_templates" ]]; then
   mkdir -p "$STAGE/specs"
   cp -r "$REPO_ROOT/specs/_templates" "$STAGE/specs/_templates"
 fi
 
-# specs/active/ and specs/implemented/ — directory markers only (no content)
+# specs/REGISTRY.md — seeded on install when absent, never overwritten
+if [[ -f "$REPO_ROOT/specs/REGISTRY.md" ]]; then
+  mkdir -p "$STAGE/specs"
+  cp "$REPO_ROOT/specs/REGISTRY.md" "$STAGE/specs/REGISTRY.md"
+fi
+
+# specs/active/ and specs/archive/ — directory markers only (no content)
 mkdir -p "$STAGE/specs/active"
 touch "$STAGE/specs/active/.gitkeep"
 
-mkdir -p "$STAGE/specs/implemented"
-touch "$STAGE/specs/implemented/.gitkeep"
+mkdir -p "$STAGE/specs/archive"
+touch "$STAGE/specs/archive/.gitkeep"
 
 # product/ — template files only; never include mission.md or roadmap.md
 if [[ -d "$REPO_ROOT/product" ]]; then

@@ -3,7 +3,7 @@
 #
 # Covers:
 #   FR-4.1 — write .prospect-version file
-#   FR-4.2 — write .prospect-manifest.json with version, toolchains, per-file checksums
+#   FR-4.2 — write .prospect-manifest.json with version and per-file checksums
 #   FR-5.1 — framework-managed files (overwrite if unmodified)
 #   FR-5.2 — user-customizable files (conflict-check on update)
 #   FR-5.3 — user-created content (never touch)
@@ -12,9 +12,8 @@
 # Task: T012 [TEST] [SCRIPT] Write tests for file categorization and manifest
 #
 # RED phase: classify_file(), write_manifest(), read_manifest_version(),
-#            read_manifest_toolchains(), read_manifest_checksum(), and
-#            write_version_file() are not yet defined in install.sh,
-#            so all tests will fail.
+#            read_manifest_checksum(), and write_version_file() are not yet
+#            defined in install.sh, so all tests will fail.
 
 set -euo pipefail
 
@@ -65,20 +64,18 @@ _require_function() {
 
 # test_classify_framework_files
 #
-# Paths under .claude/agents/*, .claude/skills/*, .github/agents/*,
-# .github/prompts/*, .github/instructions/*, and specs/_templates/* must all
-# return "framework" — these are safe to overwrite on update (FR-5.1).
+# Paths under .claude/agents/*, .claude/skills/*, .claude/workflows/*, and
+# specs/_templates/* must all return "framework" — these are safe to
+# overwrite on update (FR-5.1).
 test_classify_framework_files() {
   _require_function classify_file
 
   local paths=(
     ".claude/agents/sdd-architect.md"
-    ".claude/agents/sdd-implementer.md"
+    ".claude/agents/sdd-reviewer.md"
     ".claude/skills/sdd-start/SKILL.md"
     ".claude/skills/sdd-tasks/SKILL.md"
-    ".github/agents/sdd-start.agent.md"
-    ".github/prompts/sdd-start.prompt.md"
-    ".github/instructions/sdd-context.md"
+    ".claude/workflows/sdd-validate.js"
     "specs/_templates/spec.template.md"
     "specs/_templates/tasks.template.md"
   )
@@ -94,8 +91,8 @@ test_classify_framework_files() {
 
 # test_classify_customizable_files
 #
-# standards/global/*.md, CLAUDE.md, and .github/copilot-instructions.md must
-# return "customizable" — conflict-check needed on update (FR-5.2).
+# standards/global/*.md and CLAUDE.md must return "customizable" —
+# conflict-check needed on update (FR-5.2).
 test_classify_customizable_files() {
   _require_function classify_file
 
@@ -104,7 +101,6 @@ test_classify_customizable_files() {
     "standards/global/testing.md"
     "standards/global/git-workflow.md"
     "CLAUDE.md"
-    ".github/copilot-instructions.md"
   )
 
   for path in "${paths[@]}"; do
@@ -118,7 +114,7 @@ test_classify_customizable_files() {
 
 # test_classify_user_content_files
 #
-# Contents under specs/active/*, specs/implemented/*, and the user product
+# Contents under specs/active/*, specs/archive/*, docs/*, and the user product
 # files (product/mission.md, product/roadmap.md) must return "user-content" —
 # these locations are never touched by the installer (FR-5.3).
 test_classify_user_content_files() {
@@ -127,7 +123,8 @@ test_classify_user_content_files() {
   local paths=(
     "specs/active/2026-03-19-my-feature/spec.md"
     "specs/active/some-spec/tasks.md"
-    "specs/implemented/2025-01-01-done/spec.md"
+    "specs/archive/2025/2025-01-01-done/spec.md"
+    "docs/architecture.md"
     "product/mission.md"
     "product/roadmap.md"
   )
@@ -139,6 +136,20 @@ test_classify_user_content_files() {
     [[ "$result" == "user-content" ]] \
       || _fail "classify_file '$path' — expected 'user-content', got '$result'"
   done
+}
+
+# test_classify_install_once_files
+#
+# specs/REGISTRY.md must return "install-once" — seeded when absent but never
+# overwritten on update, so the user's append-only registry survives.
+test_classify_install_once_files() {
+  _require_function classify_file
+
+  local result
+  result="$(classify_file "specs/REGISTRY.md")" \
+    || _fail "classify_file 'specs/REGISTRY.md' exited non-zero"
+  [[ "$result" == "install-once" ]] \
+    || _fail "classify_file 'specs/REGISTRY.md' — expected 'install-once', got '$result'"
 }
 
 # test_classify_template_files
@@ -168,10 +179,9 @@ test_classify_template_files() {
 
 # test_write_manifest_creates_json
 #
-# write_manifest <target_dir> <version> <toolchains> <file1> [<file2> ...]
+# write_manifest <target_dir> <version> <file1> [<file2> ...]
 # must create .prospect-manifest.json in target_dir containing:
 #   - "version" key matching the supplied version tag
-#   - "toolchains" array with the supplied toolchain string(s)
 #   - "files" object with at least one entry whose key is the relative path
 #     and whose value is a sha256 hex string
 # (FR-4.2)
@@ -183,7 +193,7 @@ test_write_manifest_creates_json() {
   mkdir -p "$TEST_DIR/.claude/agents"
   echo "# Architect Agent" > "$TEST_DIR/$rel_path"
 
-  write_manifest "$TEST_DIR" "v1.0.0" "claude" "$rel_path" \
+  write_manifest "$TEST_DIR" "v1.0.0" "$rel_path" \
     || _fail "write_manifest exited non-zero"
 
   local manifest="$TEST_DIR/.prospect-manifest.json"
@@ -199,14 +209,32 @@ test_write_manifest_creates_json() {
   assert_contains "$content" "v1.0.0" \
     || _fail "manifest must contain the version value 'v1.0.0'"
 
-  assert_contains "$content" '"toolchains"' \
-    || _fail 'manifest must contain a "toolchains" key'
-
   assert_contains "$content" '"files"' \
     || _fail 'manifest must contain a "files" key'
 
   assert_contains "$content" "$rel_path" \
     || _fail "manifest must contain the relative file path '$rel_path'"
+}
+
+# test_write_manifest_omits_toolchains
+#
+# The toolchain concept is gone — the manifest must NOT carry a "toolchains"
+# key (readers still tolerate it in older manifests).
+test_write_manifest_omits_toolchains() {
+  _require_function write_manifest
+
+  local rel_path=".claude/agents/sdd-architect.md"
+  mkdir -p "$TEST_DIR/.claude/agents"
+  echo "# Architect Agent" > "$TEST_DIR/$rel_path"
+
+  write_manifest "$TEST_DIR" "v1.0.0" "$rel_path" \
+    || _fail "write_manifest exited non-zero"
+
+  local content
+  content="$(cat "$TEST_DIR/.prospect-manifest.json")"
+
+  assert_not_contains "$content" '"toolchains"' \
+    || _fail 'manifest must not contain a "toolchains" key'
 }
 
 # test_write_manifest_stores_correct_checksum
@@ -220,7 +248,7 @@ test_write_manifest_stores_correct_checksum() {
   mkdir -p "$TEST_DIR/.claude/agents"
   printf "known content\n" > "$TEST_DIR/$rel_path"
 
-  write_manifest "$TEST_DIR" "v1.0.0" "claude" "$rel_path" \
+  write_manifest "$TEST_DIR" "v1.0.0" "$rel_path" \
     || _fail "write_manifest exited non-zero"
 
   local expected_checksum
@@ -229,31 +257,6 @@ test_write_manifest_stores_correct_checksum() {
   local manifest="$TEST_DIR/.prospect-manifest.json"
   assert_file_contains "$manifest" "$expected_checksum" \
     || _fail "manifest must contain the sha256 checksum '$expected_checksum' for '$rel_path'"
-}
-
-# test_write_manifest_multiple_toolchains
-#
-# When two toolchains are installed, both must appear in the manifest's
-# toolchains list (FR-4.2).
-test_write_manifest_multiple_toolchains() {
-  _require_function write_manifest
-
-  local rel_path="standards/global/testing.md"
-  mkdir -p "$TEST_DIR/standards/global"
-  echo "# Testing" > "$TEST_DIR/$rel_path"
-
-  write_manifest "$TEST_DIR" "v1.2.3" "claude copilot" "$rel_path" \
-    || _fail "write_manifest exited non-zero"
-
-  local manifest="$TEST_DIR/.prospect-manifest.json"
-  local content
-  content="$(cat "$manifest")"
-
-  assert_contains "$content" "claude" \
-    || _fail "manifest must mention 'claude' toolchain"
-
-  assert_contains "$content" "copilot" \
-    || _fail "manifest must mention 'copilot' toolchain"
 }
 
 # ── Tests: read_manifest_version ──────────────────────────────────────────────
@@ -279,29 +282,25 @@ EOF
     || _fail "read_manifest_version should return 'v2.5.1', got '$result'"
 }
 
-# ── Tests: read_manifest_toolchains ───────────────────────────────────────────
+# ── Tests: old-manifest tolerance ─────────────────────────────────────────────
 
-# test_read_manifest_toolchains
+# test_read_manifest_version_tolerates_old_toolchains_field
 #
-# read_manifest_toolchains <target_dir> must return the toolchains field from
-# the manifest so the installer can default to the previous selection on update
-# (FR-4.3).
-test_read_manifest_toolchains() {
-  _require_function read_manifest_toolchains
+# Manifests written by an older installer carry a "toolchains" array. Reading
+# the version from such a manifest must still succeed and not break.
+test_read_manifest_version_tolerates_old_toolchains_field() {
+  _require_function read_manifest_version
 
   cat > "$TEST_DIR/.prospect-manifest.json" <<'EOF'
 {"version":"v1.0.0","toolchains":["claude","copilot"],"files":{}}
 EOF
 
   local result
-  result="$(read_manifest_toolchains "$TEST_DIR")" \
-    || _fail "read_manifest_toolchains exited non-zero"
+  result="$(read_manifest_version "$TEST_DIR")" \
+    || _fail "read_manifest_version exited non-zero on an old manifest"
 
-  assert_contains "$result" "claude" \
-    || _fail "read_manifest_toolchains must include 'claude'"
-
-  assert_contains "$result" "copilot" \
-    || _fail "read_manifest_toolchains must include 'copilot'"
+  assert_eq "v1.0.0" "$result" \
+    || _fail "read_manifest_version should return 'v1.0.0' from an old manifest, got '$result'"
 }
 
 # ── Tests: read_manifest_checksum ─────────────────────────────────────────────

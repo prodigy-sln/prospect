@@ -1,227 +1,83 @@
 ---
 name: sdd-implement
-description: "Phase 5: Orchestrate TDD implementation using subagents for Red-Green-Refactor cycle"
-argument-hint: ""
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task
+description: "TDD implementation: a test author writes each phase's failing tests, implementation follows inline until the gate is green"
+argument-hint: "[spec folder name]"
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task, SendMessage
 ---
 
-# TDD Implementation Orchestrator
-
-Orchestrate the implementation process using specialized subagents for each TDD phase.
-
-## Subagents
-
-| Subagent | TDD Phase | Responsibility |
-|----------|-----------|----------------|
-| `sdd-test-writer` | RED | Write failing tests |
-| `sdd-implementer` | GREEN | Write minimal code to pass |
-| `sdd-refactorer` | REFACTOR | Improve code quality |
-| `sdd-verifier` | VERIFY | Check phase completion |
+# Implement
 
 ## Prerequisites
 
-- Spec: `specs/active/[folder]/spec.md`
-- Tasks: `specs/active/[folder]/tasks.md`
-- Architecture plan (if available): `specs/active/[folder]/architecture.md`
-- User has reviewed and approved both
+Read: `specs/active/[folder]/spec.md`, `tasks.md` (medium+),
+`architecture.md` (if present), `standards/global/testing.md`,
+`standards/global/code-quality.md`. Resume from the first unchecked task.
 
----
+## Low Tier — single context
 
-## Step 1: Load Context
+Work scenario by scenario from `spec.md`:
 
-Read these files before starting:
+1. Write the failing test yourself (scenario ID in the test name).
+2. Run it and **display the failing output** — writing implementation
+   before displayed failing output is prohibited.
+3. Implement the minimum to pass; run to green.
+4. Refactor your own diff against the checklist below.
+5. Commit sequence: `test:` → `feat:` → `refactor:` (last one only when
+   changes were made).
 
-1. **Specification**: `specs/active/[folder]/spec.md`
-2. **Task Breakdown**: `specs/active/[folder]/tasks.md`
-3. **Standards**: `standards/global/code-quality.md`, `standards/global/testing.md`
-4. **Project Instructions**: `CLAUDE.md` (if exists)
-5. **Architecture Plan (optional)**: `specs/active/[folder]/architecture.md`
+Then run the gate (below) and finish.
 
----
+## Medium+ — per phase
 
-## Step 2: Identify Progress
+### 1. RED: delegate to the test author
 
-Check tasks.md for:
-- Completed tasks: `[x]`
-- Current phase
-- Next task to work on
-- Any blocked tasks
+Spawn `sdd-test-author` as a **named agent** (`test-author-phase-N`),
+passing only: spec path, this phase's scenario IDs, paths to `testing.md`,
+`scenario-guidelines.md`, and `architecture.md` (if present).
 
----
+Receive its Test Contract: interface decisions, the path to `test-map.md`
+(scenario → test file → test name, persisted in the spec folder), failing
+count, test command. **The interface decisions are binding.** If it reports
+already-satisfied scenarios or architecture conflicts, surface them to the
+user before continuing.
 
-## Step 3: Process Each Phase
+### 2. GREEN: implement inline, task by task
 
-Phases are processed sequentially (typically: Database → Backend → Frontend → Integration).
+Find the task's tests via `test-map.md`, read them, and implement the
+minimum that satisfies them. Run the tests; iterate to green. Commit:
+`feat: implement [task]`.
 
-```
-FOR EACH PHASE:
+**Test files belong to the test author.** If a failing test looks wrong:
 
-  For each task in phase (sequential):
+- Do NOT edit it. Send the named test author the facts only: test name,
+  assertion diff, scenario ID, minimal implementation excerpt. No argument,
+  no proposed fix.
+- Apply the verdict: `test-correct` → make the implementation conform;
+  `test-wrong` → the author fixes and commits, re-run; `scenario-ambiguous`
+  → ask the user.
 
-    1. Check if task is blocked
-       - If blockedBy tasks not complete → skip for now
-       - If ready → proceed
+### 3. REFACTOR: own diff only
 
-    2. Delegate to sdd-test-writer subagent (RED)
-       - Pass: spec path, task details, standards path, requirement ID
-       - If available: architecture plan path for interfaces/contracts
-       - Receive: test files, test names, confirmation
+Checklist over the task's diff: naming · duplication · dead code · error
+messages · nesting depth · standards fit. Fix in-diff issues, run tests
+after each change, commit `refactor: improve [component]` only when
+something changed. Issues in files outside the diff go to `tasks.md` under
+`## Notes` as deferred observations — never fix them in passing.
 
-    3. Delegate to sdd-implementer subagent (GREEN)
-       - Pass: spec path, task details, standards path, test output
-       - If available: architecture plan path for interfaces/contracts
-       - Receive: implementation files, confirmation
+### 4. Track and gate
 
-    4. Delegate to sdd-refactorer subagent (REFACTOR)
-       - This phase is **required** after every GREEN implementation. If no refactor is needed, the refactorer must explicitly confirm "no changes" while reviewing for cleanliness and standards.
-       - Pass: spec path, task details, standards path, implementation files
-       - If available: architecture plan path for interfaces/contracts
-       - Receive: refactoring summary (or explicit "no changes"), confirmation
+Mark the task done in `tasks.md` (append status; never rewrite task text).
+At phase end run `scripts/sdd-gate.*` — it must exit 0 before the next
+phase begins. On failure: fix exactly what the output reports, re-run.
+Never proceed on a red gate.
 
-    5. Mark task complete in tasks.md
-       - Update: [ ] → [x]
-       - Add completion date
+## Scope Guard
 
-  After all tasks in phase complete:
+Before any implementation edit: does it map to a task and scenario, and is
+it absent from Out of Scope? If not — record it under `## Notes`, don't
+build it.
 
-    6. Delegate to sdd-verifier subagent
-       - Pass: spec path, phase name, completed tasks, coverage target
-      - If available: architecture plan path for scope validation
-       - Receive: test results, coverage, issues
+## Session End
 
-    7. Handle verification result
-       - If PASSED → continue to next phase
-       - If FAILED → report issues, ask user how to proceed
-```
-
----
-
-## Step 4: Subagent Delegation
-
-Use the Task tool to delegate to each subagent. Provide full context in the prompt:
-
-**Parallel delegation rule:** if tasks are run in parallel, spawn one agent per task. Do not bundle multiple tasks into a single agent invocation, and never combine different TDD phases (RED tests vs GREEN implementation) in the same agent call.
-
-### Test Writer (RED)
-```
-Delegate to sdd-test-writer subagent:
-
-Context:
-- Spec: [path to spec.md]
-- Task: [current task ID and full details]
-- Standards: [path to testing.md]
-- Requirement: [FR-X.X being implemented]
-
-Write failing tests for this task.
-```
-
-If the tests do NOT fail, check why. The implementation should be outstanding. If the test does not fail, check:
-- Does it really test the new requirement?
-- Is the test meaningful?
-- Is it possible the requirement is already satisfied by existing code? If so, this may indicate a spec issue (e.g., missing constraints or edge cases) rather than an implementation issue. Flag for review.
-
-### Implementer (GREEN)
-```
-Delegate to sdd-implementer subagent:
-
-Context:
-- Spec: [path to spec.md]
-- Task: [current task ID and full details]
-- Standards: [path to code-quality.md]
-- Test files: [paths from test-writer]
-
-Implement minimal code to pass the tests.
-```
-
-### Refactorer (REFACTOR)
-```
-Delegate to sdd-refactorer subagent:
-
-Context:
-- Spec: [path to spec.md]
-- Task: [current task ID and full details]
-- Standards: [path to code-quality.md]
-- Implementation files: [paths from implementer]
-
-Refactor while keeping tests green.
-```
-
-### Verifier (PHASE END)
-```
-Delegate to sdd-verifier subagent:
-
-Context:
-- Spec: [path to spec.md]
-- Phase: [phase name]
-- Completed tasks: [list of task IDs]
-- Coverage target: [from spec or standards]
-
-Run quality gates (formatter, linter, type checker), then full test suite.
-Verify phase completion and report results.
-```
-
----
-
-## Step 5: Scope Control (CRITICAL)
-
-Before allowing ANY implementation:
-
-1. Is this task in tasks.md?
-2. Does this task relate to a spec requirement (FR-X.X)?
-3. Is this NOT in the "Out of Scope" section?
-4. If architecture.md exists: does the planned approach align with the decisions, interfaces, and data contracts?
-
-**If NO to any → Do not implement. Note it for future work.**
-
-The spec's "Out of Scope" section is **binding**:
-- Do NOT implement out-of-scope items
-- Do NOT add "improvements" beyond spec
-- Do NOT refactor unrelated code
-
----
-
-## Step 6: Progress Tracking
-
-### Update tasks.md After Each Task
-
-```markdown
-- [x] T004 [TEST] Write schema tests ✓ 2026-01-29
-      └── Tests: 3 added, all passing
-```
-
-**Preserve tasks.md content:** Never delete or replace task text. Only append status markers (e.g., `[x]`, dates, brief outcomes) and keep the original descriptions and acceptance details intact.
-
-### Report After Each Phase
-
-Show tasks completed, verification results, and next phase.
-
----
-
-## Step 7: Error Handling
-
-- **Test Failure**: Re-invoke test-writer or implementer to fix
-- **Blocked Task**: Check dependencies, ask user if external blocker
-- **Coverage Below Target**: Re-invoke test-writer to add missing tests
-
----
-
-## Output
-
-When implementation session ends (complete or paused):
-
-```
-## Implementation Progress
-
-**Spec**: `specs/active/[folder]/spec.md`
-
-### Session Summary
-| Phase | Status | Tasks | Tests | Coverage |
-|-------|--------|-------|-------|----------|
-| Database | Complete | 3/3 | 12 | 95% |
-| Backend | Complete | 5/5 | 24 | 88% |
-| Frontend | In Progress | 2/4 | 8 | 72% |
-| Integration | Pending | 0/2 | - | - |
-
-### Next Steps
-[Continue implementation or proceed to validation: `/sdd-validate`]
-```
+Report per phase: tasks completed, tests passing, gate status, deferred
+observations. Next: `/sdd-validate`.

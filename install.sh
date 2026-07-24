@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # install.sh — Prospect install/update script
-# Implements: FR-1.4 (version argument), FR-2.5 (toolchain flags)
+# Implements: FR-1.4 (version argument)
 
 set -euo pipefail
 
@@ -51,9 +51,6 @@ usage: install.sh [OPTIONS] [VERSION]
 Install or update the Prospect SDD framework in the current directory.
 
 OPTIONS:
-  --claude      Install Claude Code toolchain only
-  --copilot     Install VS Code Copilot toolchain only
-  --all         Install both toolchains (default)
   --help        Print this help message and exit
 
 VERSION:
@@ -62,13 +59,10 @@ VERSION:
 EXAMPLES:
   install.sh
   install.sh v1.2.0
-  install.sh --claude
-  install.sh v1.2.0 --claude
 EOF
 }
 
 parse_args() {
-  TOOLCHAIN=""
   VERSION_ARG="latest"
 
   while [[ $# -gt 0 ]]; do
@@ -76,18 +70,6 @@ parse_args() {
       --help)
         usage
         exit 0
-        ;;
-      --claude)
-        TOOLCHAIN="claude"
-        shift
-        ;;
-      --copilot)
-        TOOLCHAIN="copilot"
-        shift
-        ;;
-      --all)
-        TOOLCHAIN="all"
-        shift
         ;;
       v[0-9]*.[0-9]*.[0-9]*)
         VERSION_ARG="$1"
@@ -101,7 +83,7 @@ parse_args() {
     esac
   done
 
-  export TOOLCHAIN VERSION_ARG
+  export VERSION_ARG
 }
 
 # ── Download ───────────────────────────────────────────────────────────────────
@@ -164,91 +146,32 @@ download_release() {
   rm -rf "$tmp_extract"
 }
 
-# ── Toolchain selection ────────────────────────────────────────────────────────
-
-# select_toolchain <target_dir>
-# Resolves the toolchain to install.  Priority order:
-#   1. TOOLCHAIN env var set by --claude / --copilot / --all flag → use as-is
-#   2. .prospect-manifest.json in <target_dir> exists → derive from toolchains array
-#   3. Interactive stdin → prompt user (not exercised in tests)
-#   4. Non-interactive (default) → "all"
-#
-# Echoes one of: claude | copilot | all
-select_toolchain() {
-  local target_dir="${1:-$PWD}"
-
-  # 1. CLI flag wins unconditionally.
-  if [[ -n "${TOOLCHAIN:-}" ]]; then
-    echo "$TOOLCHAIN"
-    return 0
-  fi
-
-  # 2. Manifest-based default.
-  local manifest="$target_dir/.prospect-manifest.json"
-  if [[ -f "$manifest" ]]; then
-    # Extract the toolchains array value using grep/sed — no jq needed.
-    # Input looks like: "toolchains":["claude","copilot"]
-    local raw_array
-    raw_array="$(grep -o '"toolchains":\[[^]]*\]' "$manifest" | sed 's/"toolchains"://')"
-
-    local has_claude=0 has_copilot=0
-    [[ "$raw_array" == *'"claude"'* ]] && has_claude=1
-    [[ "$raw_array" == *'"copilot"'* ]] && has_copilot=1
-
-    if [[ $has_claude -eq 1 && $has_copilot -eq 1 ]]; then
-      echo "all"
-    elif [[ $has_claude -eq 1 ]]; then
-      echo "claude"
-    elif [[ $has_copilot -eq 1 ]]; then
-      echo "copilot"
-    else
-      echo "all"
-    fi
-    return 0
-  fi
-
-  # 3. Interactive prompt (stdin is a terminal).
-  if [[ -t 0 ]]; then
-    echo "Select toolchain to install:" >&2
-    echo "  1) claude" >&2
-    echo "  2) copilot" >&2
-    echo "  3) all (default)" >&2
-    local choice
-    read -r -p "Choice [3]: " choice </dev/tty
-    case "$choice" in
-      1) echo "claude" ;;
-      2) echo "copilot" ;;
-      *) echo "all" ;;
-    esac
-    return 0
-  fi
-
-  # 4. Non-interactive default.
-  echo "all"
-}
-
 # ── File categorization ────────────────────────────────────────────────────────
 
 # classify_file <relative_path>
 # Echoes the category of the file: "framework", "customizable", "user-content",
-# or "template". Used by the installer to decide how to handle each file on
-# install and update (FR-5.1 – FR-5.4).
+# "template", or "install-once". Used by the installer to decide how to handle
+# each file on install and update.
+#   framework/customizable/template — written on install, conflict-checked on update
+#   user-content                    — never touched when it already exists
+#   install-once                    — seeded when absent, never overwritten (REGISTRY)
 classify_file() {
   local path="$1"
 
   case "$path" in
+    specs/REGISTRY.md)
+      echo "install-once"
+      ;;
     product/mission.template.md|product/roadmap.template.md)
       echo "template"
       ;;
-    .claude/agents/*|.claude/skills/*|\
-    .github/agents/*|.github/prompts/*|.github/instructions/*|\
-    specs/_templates/*)
+    .claude/agents/*|.claude/skills/*|.claude/workflows/*|specs/_templates/*)
       echo "framework"
       ;;
-    standards/global/*.md|CLAUDE.md|.github/copilot-instructions.md)
+    standards/global/*.md|CLAUDE.md)
       echo "customizable"
       ;;
-    specs/active/*|specs/implemented/*|product/mission.md|product/roadmap.md)
+    specs/active/*|specs/archive/*|docs/*|product/mission.md|product/roadmap.md)
       echo "user-content"
       ;;
     *)
@@ -278,32 +201,15 @@ _compute_sha256() {
 
 # ── Manifest read/write ────────────────────────────────────────────────────────
 
-# write_manifest <target_dir> <version> <toolchains> <file1> [file2] ...
+# write_manifest <target_dir> <version> <file1> [file2] ...
 # Writes .prospect-manifest.json to target_dir.
-# toolchains is a space- or comma-separated string, e.g. "claude copilot".
 # Each file argument is a relative path; the function computes its sha256
 # from the actual file at target_dir/relative_path (FR-4.2).
 write_manifest() {
   local target_dir="$1"
   local version="$2"
-  local toolchains_raw="$3"
-  shift 3
+  shift 2
   local files=("$@")
-
-  # Build toolchains JSON array from space- or comma-separated input.
-  local tc_json=""
-  local first=1
-  # Normalise separators: replace commas with spaces, then split on whitespace.
-  local tc_list
-  tc_list="$(printf '%s' "$toolchains_raw" | tr ',' ' ')"
-  for tc in $tc_list; do
-    if [[ $first -eq 1 ]]; then
-      tc_json="\"$tc\""
-      first=0
-    else
-      tc_json="$tc_json,\"$tc\""
-    fi
-  done
 
   # Build files JSON object.
   local files_json=""
@@ -319,8 +225,8 @@ write_manifest() {
     fi
   done
 
-  printf '{"version":"%s","toolchains":[%s],"files":{%s}}\n' \
-    "$version" "$tc_json" "$files_json" \
+  printf '{"version":"%s","files":{%s}}\n' \
+    "$version" "$files_json" \
     > "$target_dir/.prospect-manifest.json"
 }
 
@@ -335,23 +241,6 @@ read_manifest_version() {
   # Extract "version":"<value>" from single-line JSON.
   grep -o '"version":"[^"]*"' "$manifest" \
     | sed 's/"version":"//;s/"//'
-}
-
-# read_manifest_toolchains <target_dir>
-# Reads the toolchains array from .prospect-manifest.json and echoes the
-# entries as a space-separated string (FR-4.3).
-read_manifest_toolchains() {
-  local target_dir="$1"
-  local manifest="$target_dir/.prospect-manifest.json"
-
-  [[ -f "$manifest" ]] || { echo ""; return 1; }
-
-  # Extract the toolchains array content, e.g. ["claude","copilot"]
-  # -> claude copilot
-  grep -o '"toolchains":\[[^]]*\]' "$manifest" \
-    | sed 's/"toolchains":\[//;s/\]//' \
-    | tr -d '"' \
-    | tr ',' ' '
 }
 
 # read_manifest_checksum <target_dir> <relative_path>
@@ -386,15 +275,14 @@ write_version_file() {
 
 # ── Install orchestration ──────────────────────────────────────────────────────
 
-# install_files <source_dir> <target_dir> <version> <toolchain>
+# install_files <source_dir> <target_dir> <version>
 # Orchestrates the full install/update flow.
-# Copies files from source_dir into target_dir, applying toolchain filter,
-# conflict detection, and manifest/version tracking.
+# Copies files from source_dir into target_dir, applying conflict detection
+# and manifest/version tracking.
 install_files() {
   local source_dir="$1"
   local target_dir="$2"
   local version="$3"
-  local toolchain="$4"
 
   # FR-7.1: Warn if target_dir is not a git repo, but continue.
   if [[ ! -d "$target_dir/.git" ]]; then
@@ -414,25 +302,18 @@ install_files() {
       local any_diff=0
       while IFS= read -r -d '' src_file; do
         local rel_path="${src_file#$source_dir/}"
+        [[ "$(basename "$rel_path")" == ".gitkeep" ]] && continue
         local category
         category="$(classify_file "$rel_path")"
         [[ "$category" == "user-content" ]] && continue
-
-        # Apply toolchain filter.
-        if [[ "$toolchain" == "claude" ]]; then
-          [[ "$rel_path" == .github/* ]] && continue
-        elif [[ "$toolchain" == "copilot" ]]; then
-          [[ "$rel_path" == .claude/* ]] && continue
-          [[ "$rel_path" == "CLAUDE.md" ]] && continue
-        fi
+        [[ "$category" == "install-once" ]] && continue
 
         local target_file="$target_dir/$rel_path"
         [[ ! -f "$target_file" ]] && { any_diff=1; break; }
 
-        local src_sum target_sum manifest_sum
+        local src_sum target_sum
         src_sum="$(_compute_sha256 "$src_file")"
         target_sum="$(_compute_sha256 "$target_file")"
-        manifest_sum="$(read_manifest_checksum "$target_dir" "$rel_path")"
         if [[ "$src_sum" != "$target_sum" ]]; then
           any_diff=1
           break
@@ -453,7 +334,7 @@ install_files() {
 
   # FR-5.4: Ensure required directories exist.
   mkdir -p "$target_dir/specs/active"
-  mkdir -p "$target_dir/specs/implemented"
+  mkdir -p "$target_dir/specs/archive"
   mkdir -p "$target_dir/product"
 
   # Walk source_dir for all files.
@@ -462,14 +343,6 @@ install_files() {
 
     # Skip .gitkeep files (used only to preserve empty dirs in artifacts).
     [[ "$(basename "$rel_path")" == ".gitkeep" ]] && continue
-
-    # Apply toolchain filter (FR-2.2, FR-2.3).
-    if [[ "$toolchain" == "claude" ]]; then
-      [[ "$rel_path" == .github/* ]] && continue
-    elif [[ "$toolchain" == "copilot" ]]; then
-      [[ "$rel_path" == .claude/* ]] && continue
-      [[ "$rel_path" == "CLAUDE.md" ]] && continue
-    fi
 
     local category
     category="$(classify_file "$rel_path")"
@@ -486,16 +359,16 @@ install_files() {
       continue
     fi
 
-    # FR-3.5: Special case for .github/copilot-instructions.md.
-    # If pre-exists with no manifest entry, treat as non-Prospect content.
-    if [[ "$rel_path" == ".github/copilot-instructions.md" && -f "$target_file" && $manifest_exists -eq 0 ]]; then
-      local manifest_sum
-      manifest_sum="$(read_manifest_checksum "$target_dir" "$rel_path")"
-      if [[ -z "$manifest_sum" ]]; then
-        echo "Note: .github/copilot-instructions.md already exists with existing content. Please merge manually with the Prospect version." >&2
+    # install-once — seed the registry when absent, never overwrite it.
+    if [[ "$category" == "install-once" ]]; then
+      if [[ -f "$target_file" ]]; then
         skipped_files+=("$rel_path")
         continue
       fi
+      mkdir -p "$(dirname "$target_file")"
+      cp "$src_file" "$target_file"
+      installed_files+=("$rel_path")
+      continue
     fi
 
     # Ensure parent directory exists.
@@ -548,6 +421,8 @@ install_files() {
     done
     # Re-add any files already in manifest that we didn't touch.
     # (They remain installed from prior run.)
+    # "version" is always skipped; "toolchains" is skipped for tolerance of
+    # manifests written by older installer versions.
     local prev_files
     if prev_files="$(grep -o '"[^"]*":"[^"]*"' "$target_dir/.prospect-manifest.json" \
         | grep -v '"version"' | grep -v '"toolchains"' | sed 's/:"[^"]*"//' | tr -d '"' 2>/dev/null)"; then
@@ -566,14 +441,14 @@ install_files() {
   fi
 
   if [[ ${#manifest_files[@]} -gt 0 ]]; then
-    write_manifest "$target_dir" "$version" "$toolchain" "${manifest_files[@]}"
+    write_manifest "$target_dir" "$version" "${manifest_files[@]}"
   else
-    write_manifest "$target_dir" "$version" "$toolchain"
+    write_manifest "$target_dir" "$version"
   fi
   write_version_file "$target_dir" "$version"
 
   # FR-3.4: Print summary.
-  echo "Prospect ${version} installed (toolchain: ${toolchain})."
+  echo "Prospect ${version} installed."
   if [[ ${#installed_files[@]} -gt 0 ]]; then
     echo "  Installed: ${#installed_files[@]} file(s)."
   fi
@@ -596,15 +471,12 @@ main() {
 
   # Allow tests to verify parsing without triggering network/install.
   if [[ "${PROSPECT_DRY_RUN:-}" == "1" ]]; then
-    echo "TOOLCHAIN=${TOOLCHAIN:-} VERSION_ARG=${VERSION_ARG:-}"
+    echo "VERSION_ARG=${VERSION_ARG:-}"
     return 0
   fi
 
   local version
   version="$(resolve_version "$VERSION_ARG")"
-
-  local toolchain
-  toolchain="$(select_toolchain "$PWD")"
 
   local tmp_dir
   tmp_dir="$(mktemp -d)"
@@ -618,7 +490,7 @@ main() {
     source_dir="$tmp_dir"
   fi
 
-  install_files "$source_dir" "$PWD" "$version" "$toolchain"
+  install_files "$source_dir" "$PWD" "$version"
 }
 
 if [[ "${_PROSPECT_SOURCED:-}" != "1" && "${BASH_SOURCE[0]}" == "${0}" ]]; then

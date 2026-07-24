@@ -22,17 +22,17 @@ _fail() {
   exit 1
 }
 
-# Run build script in TEST_DIR, extract the archive, and return the extracted
-# root directory path via stdout.
+# Run build script inside TEST_DIR, extract the archive, and return the
+# extracted root directory path via stdout.
+#
+# The build script writes its archives to the current working directory, so it
+# MUST be invoked from a temp dir — never the caller's cwd — or it pollutes the
+# working tree with prospect-<version>.tar.gz/.zip artifacts.
 _build_and_extract() {
   local version="${1:-v1.0.0}"
 
-  # Run the build script from the repo root so it can find source files
-  bash "$BUILD_SCRIPT" "$version" >"$TEST_DIR/build.log" 2>&1
+  (cd "$TEST_DIR" && bash "$BUILD_SCRIPT" "$version") >"$TEST_DIR/build.log" 2>&1
 
-  # The script should produce prospect-<version>.tar.gz in the current directory
-  # The build script outputs to pwd when called; we run it from REPO_ROOT and
-  # capture the archive paths from its output.
   local tarball
   tarball=$(grep '\.tar\.gz' "$TEST_DIR/build.log" | tail -1 | tr -d '[:space:]')
 
@@ -50,7 +50,7 @@ _build_and_extract() {
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 
-# FR-8.2: artifact contains Claude Code files
+# FR-8.2: artifact contains Claude Code files (agents, skills, workflows)
 test_artifact_contains_claude_files() {
   local root
   root=$(_build_and_extract "v1.0.0")
@@ -59,22 +59,21 @@ test_artifact_contains_claude_files() {
     || _fail ".claude/agents/ missing from artifact"
   assert_dir_exists "$root/.claude/skills" ".claude/skills/ must be in artifact" \
     || _fail ".claude/skills/ missing from artifact"
+  assert_dir_exists "$root/.claude/workflows" ".claude/workflows/ must be in artifact" \
+    || _fail ".claude/workflows/ missing from artifact"
 }
 
-# FR-8.2: artifact contains VS Code Copilot files
-test_artifact_contains_copilot_files() {
+# FR-8.2: artifact must NOT contain a .github/ toolchain tree
+test_artifact_excludes_github_tree() {
   local root
   root=$(_build_and_extract "v1.0.0")
 
-  assert_dir_exists "$root/.github/agents" ".github/agents/ must be in artifact" \
-    || _fail ".github/agents/ missing from artifact"
-  assert_dir_exists "$root/.github/prompts" ".github/prompts/ must be in artifact" \
-    || _fail ".github/prompts/ missing from artifact"
-  assert_dir_exists "$root/.github/instructions" ".github/instructions/ must be in artifact" \
-    || _fail ".github/instructions/ missing from artifact"
+  if [[ -d "$root/.github" ]]; then
+    _fail ".github/ must NOT be included in the release artifact"
+  fi
 }
 
-# FR-8.2: artifact contains shared/standards files
+# FR-8.2: artifact contains shared/standards files and the registry seed
 test_artifact_contains_shared_files() {
   local root
   root=$(_build_and_extract "v1.0.0")
@@ -83,6 +82,8 @@ test_artifact_contains_shared_files() {
     || _fail "standards/ missing from artifact"
   assert_dir_exists "$root/specs/_templates" "specs/_templates/ must be in artifact" \
     || _fail "specs/_templates/ missing from artifact"
+  assert_file_exists "$root/specs/REGISTRY.md" "specs/REGISTRY.md must be in artifact" \
+    || _fail "specs/REGISTRY.md missing from artifact"
   assert_file_exists "$root/CLAUDE.md" "CLAUDE.md must be in artifact" \
     || _fail "CLAUDE.md missing from artifact"
   assert_file_exists "$root/README.md" "README.md must be in artifact" \
@@ -108,9 +109,9 @@ test_artifact_includes_gitkeep_for_empty_dirs() {
   assert_file_exists "$root/specs/active/.gitkeep" \
     "specs/active/.gitkeep must be in artifact (FR-8.3)" \
     || _fail "specs/active/.gitkeep missing from artifact"
-  assert_file_exists "$root/specs/implemented/.gitkeep" \
-    "specs/implemented/.gitkeep must be in artifact (FR-8.3)" \
-    || _fail "specs/implemented/.gitkeep missing from artifact"
+  assert_file_exists "$root/specs/archive/.gitkeep" \
+    "specs/archive/.gitkeep must be in artifact (FR-8.3)" \
+    || _fail "specs/archive/.gitkeep missing from artifact"
 }
 
 # FR-8.4: artifact must NOT include spec content under specs/active/ (only .gitkeep)
@@ -126,12 +127,12 @@ test_artifact_excludes_spec_content() {
     "specs/active/ should contain exactly 1 file (.gitkeep), got $active_files" \
     || _fail "specs/active/ should contain only .gitkeep, found $active_files file(s)"
 
-  local implemented_files
-  implemented_files=$(find "$root/specs/implemented" -type f 2>/dev/null | wc -l | tr -d '[:space:]')
+  local archive_files
+  archive_files=$(find "$root/specs/archive" -type f 2>/dev/null | wc -l | tr -d '[:space:]')
 
-  assert_eq "1" "$implemented_files" \
-    "specs/implemented/ should contain exactly 1 file (.gitkeep), got $implemented_files" \
-    || _fail "specs/implemented/ should contain only .gitkeep, found $implemented_files file(s)"
+  assert_eq "1" "$archive_files" \
+    "specs/archive/ should contain exactly 1 file (.gitkeep), got $archive_files" \
+    || _fail "specs/archive/ should contain only .gitkeep, found $archive_files file(s)"
 }
 
 # FR-8.4: artifact must NOT include .git directory
@@ -148,7 +149,7 @@ test_artifact_excludes_git_directory() {
 test_artifact_has_correct_structure() {
   local version="v1.0.0"
 
-  bash "$BUILD_SCRIPT" "$version" >"$TEST_DIR/build.log" 2>&1
+  (cd "$TEST_DIR" && bash "$BUILD_SCRIPT" "$version") >"$TEST_DIR/build.log" 2>&1
 
   local tarball
   tarball=$(grep '\.tar\.gz' "$TEST_DIR/build.log" | tail -1 | tr -d '[:space:]')
