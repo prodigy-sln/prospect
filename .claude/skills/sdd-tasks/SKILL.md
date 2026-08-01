@@ -14,6 +14,8 @@ Turn an approved spec into `tasks.md`. Applies at `rigor: medium` and above
 
 - Approved `specs/active/[folder]/spec.md`, Open Questions empty
 - `architecture.md`, if present, is approved
+- `## Discussion Findings`, if `/sdd-discuss` ran, has no unresolved
+  deadlocks — those are decided by the user before tasks are cut
 
 ## Build the Task List
 

@@ -48,10 +48,14 @@ cp -r prospect/product   /path/to/your/project/   # optional
 ## The Workflow
 
 ```
-/sdd-start ──► (/sdd-discuss) ──► (/sdd-architect) ──► /sdd-tasks
+/sdd-start ──► (/sdd-architect) ──► (/sdd-discuss) ──► /sdd-tasks
                                                           │
 /sdd-complete ◄── /sdd-validate ◄── /sdd-implement ◄──────┘
 ```
+
+`/sdd-discuss` runs after the spec — and, at `high+`, the architecture
+draft — exist, so personas challenge actual binding decisions instead of
+an early plan.
 
 Every spec carries a **rigor tier** — pay only for the ceremony the change
 warrants:
@@ -61,7 +65,7 @@ warrants:
 | **low** | Mini-spec with inline scenarios, inline TDD, quality gate only |
 | **medium** (default) | Full spec, scenario audit, isolated test author, combined review |
 | **high** | Architecture plan, specialist reviewer workflow with verification, sign-off |
-| **xhigh** | Parallel stakeholder-persona reviews of the plan |
+| **xhigh** | Parallel stakeholder-persona reviews of the spec + architecture |
 | **max** | Personas negotiate as an agent team (debate, common ground, deferrals) |
 
 The pillars:
