@@ -49,8 +49,6 @@ create it from `specs/_templates/spec.template.md` plus an empty
    references; existing components to use. Integration questions alone are
    insufficient for UI features.
 5. Record everything in `requirements.md`.
-6. At `xhigh`/`max`, run `/sdd-discuss` now. At lower tiers, suggest it when
-   stakeholder positions conflict.
 
 ## Step 4: Specify
 
@@ -86,5 +84,6 @@ End with:
 ```
 Spec approved and committed. Everything downstream needs is in
 specs/active/[folder]/ — safe to /clear.
-Next: /sdd-architect (high+) or /sdd-tasks (medium+) or /sdd-implement (low).
+Next: /sdd-architect (high+, then /sdd-discuss at xhigh/max) or
+/sdd-tasks (medium) or /sdd-implement (low).
 ```

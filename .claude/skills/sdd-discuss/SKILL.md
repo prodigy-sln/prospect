@@ -1,21 +1,35 @@
 ---
 name: sdd-discuss
-description: "Challenge the feature plan with stakeholder personas — parallel reviews (xhigh) or a negotiating agent team (max)"
+description: "Challenge the spec and architecture with stakeholder personas — parallel reviews (xhigh) or a negotiating agent team (max)"
 argument-hint: "[spec folder name]"
 allowed-tools: Read, Glob, Grep, Bash, Agent, SendMessage
 ---
 
-# Discuss the Feature Plan
+# Discuss the Spec and Architecture
 
-Stakeholder personas challenge the plan and answer open questions between
-shaping and specification. Findings feed the spec.
+Stakeholder personas challenge the approved spec and, at `high+`, the
+drafted architecture — after `/sdd-architect`, before task breakdown.
+Findings amend the documents they target.
+
+## Step 0: Target
+
+Check `specs/active/[folder]/` for `architecture.md`.
+
+- Present → this is the primary review target (Mode B for
+  `persona-architect`). `spec.md` is background context.
+- Absent (discuss invoked on demand at `medium` or below, before any
+  architecture step) → `spec.md` is the review target (Mode A).
 
 ## Step 1: Brief
 
-Compose a self-contained brief (≤500 words) from
-`specs/active/[folder]/requirements.md`: feature goal, core workflow,
-decisions already made, open questions, exclusions, relevant codebase
-context. Personas must be able to judge the plan from the brief alone.
+Compose a self-contained brief (≤500 words): feature goal, key scenarios,
+and — when `architecture.md` exists — its drivers, boundaries table,
+binding decisions, and assumptions. Include any prior `## Discussion
+Findings` so a second round doesn't re-litigate settled points. Give
+every persona the direct paths to `spec.md` and `architecture.md` (if
+present) alongside the brief — `persona-architect` reads the full
+architecture draft itself in Mode B rather than working from the summary
+alone.
 
 ## Step 2: Personas
 
@@ -33,15 +47,16 @@ creates productive tension with it — `persona-product-owner`,
 
 ## Step 4a: Parallel Review (xhigh)
 
-Spawn each persona as a subagent with the brief. Each returns concerns with
-severity, answers to the open questions, and one "what's missing". Then
-synthesize. **Every inter-persona tension goes to the user unresolved** — no
-silent dropping, no resolving conflicts yourself.
+Spawn each persona as a subagent with the brief and document paths. Each
+returns concerns with severity, answers to the open questions, and one
+"what's missing". Then synthesize. **Every inter-persona tension goes to
+the user unresolved** — no silent dropping, no resolving conflicts
+yourself.
 
 ## Step 4b: Negotiating Team (max)
 
 Spawn the personas as teammates. Each spawn prompt contains the brief, the
-names of the other personas, and this protocol:
+document paths, the names of the other personas, and this protocol:
 
 1. Send your initial review to the lead AND to each other persona.
 2. When a peer's review arrives, reply directly to that persona on your
@@ -56,13 +71,29 @@ final positions. Afterwards ask each teammate to shut down.
 
 ## Step 5: Synthesis
 
-Append to `requirements.md` under `## Discussion Findings`:
+Append `## Discussion Findings` to the Step 0 target file
+(`architecture.md` when present, else `spec.md`):
 
 - Resolved questions (answer + which persona settled it)
-- New requirements or constraints that surfaced
+- New requirements, constraints, or risks that surfaced
 - Every contested point labeled: **agreed** / **deferred** (by whom, why) /
   **deadlocked** (user decides)
 - Team mode: a short discussion log — who challenged whom, what moved
 
+For every **agreed** finding that changes a binding decision or the
+boundaries table, amend that section directly (don't leave a contradicted
+decision standing next to the note that overrode it) and mark it "amended
+per discussion". A finding that requires a new or changed spec scenario
+gets applied to `spec.md` directly, with a one-line cross-reference from
+the architecture's Discussion Findings entry.
+
 Present the same summary in the conversation. The user rules on every
-deadlock before specification proceeds.
+deadlock before task breakdown proceeds. Commit:
+`docs(spec): incorporate discussion findings for [feature]`.
+
+End with:
+
+```
+Discussion findings committed. Safe to /clear.
+Next: /sdd-tasks
+```

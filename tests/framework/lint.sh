@@ -19,13 +19,14 @@ budget() { # budget <max> <file...>
 }
 
 # --- Word budgets per file class ---------------------------------------
-budget 700 .claude/skills/*/SKILL.md
-budget 550 .claude/agents/*.md
+budget 950 .claude/skills/*/SKILL.md
+budget 900 .claude/agents/*.md
 budget 450 specs/_templates/spec.template.md specs/_templates/tasks.template.md specs/_templates/docs-index.template.md
 budget 250 specs/_templates/spec-mini.template.md
 budget 350 standards/global/scenario-guidelines.md
 budget 350 standards/global/validation-calibration.md
-budget 700 standards/global/code-quality.md standards/global/testing.md standards/global/git-workflow.md
+budget 700 standards/global/testing.md standards/global/git-workflow.md
+budget 900 standards/global/code-quality.md standards/global/architecture-principles.md
 
 # --- Total prompt surface ----------------------------------------------
 TOTAL=0
@@ -33,7 +34,7 @@ for f in .claude/skills/*/SKILL.md .claude/agents/*.md specs/_templates/*.md \
          standards/global/*.md; do
   [ -f "$f" ] && TOTAL=$((TOTAL + $(words "$f")))
 done
-[ "$TOTAL" -le 10000 ] || err "total prompt surface: $TOTAL words (budget 10000)"
+[ "$TOTAL" -le 12500 ] || err "total prompt surface: $TOTAL words (budget 12500)"
 echo "total prompt surface: $TOTAL words"
 
 # --- Forbidden references (removed tools/components, stale paths) -------

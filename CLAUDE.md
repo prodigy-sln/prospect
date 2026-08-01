@@ -6,21 +6,25 @@ test-driven development.
 ## Workflow
 
 ```
-/sdd-start [feature]  →  (/sdd-discuss)  →  (/sdd-architect)  →  /sdd-tasks
+/sdd-start [feature]  →  (/sdd-architect)  →  (/sdd-discuss)  →  /sdd-tasks
     →  /sdd-implement  →  /sdd-validate  →  /sdd-complete
 ```
+
+`/sdd-discuss` runs after the spec and (at high+) the architecture draft
+exist, so personas challenge actual binding decisions instead of an early
+plan.
 
 Every spec carries a rigor tier in its frontmatter. Each tier strictly adds
 to the previous one; escalate whenever new risk appears (record the reason),
 downgrade only with explicit user confirmation.
 
-| `rigor:` | Spec | Tasks | Implement | Validate | Discuss |
-|----------|------|-------|-----------|----------|---------|
-| low | mini-spec | — | inline TDD | gate script | — |
-| medium (default) | full + scenarios | scenario groups | test author + inline | gate + combined reviewer | — |
-| high | + architecture | same | same | gate + reviewer workflow, sign-off | — |
-| xhigh | same | same | same | same | parallel persona reviews |
-| max | same | same | same | same | negotiating agent team |
+| `rigor:` | Spec | Discuss | Tasks | Implement | Validate |
+|----------|------|---------|-------|-----------|----------|
+| low | mini-spec | — | — | inline TDD | gate script |
+| medium (default) | full + scenarios | — | scenario groups | test author + inline | gate + combined reviewer |
+| high | + architecture | — | same | same | gate + reviewer workflow, sign-off |
+| xhigh | same | parallel persona reviews | same | same | same |
+| max | same | negotiating agent team | same | same | same |
 
 ## Key Principles
 
@@ -49,8 +53,8 @@ downgrade only with explicit user confirmation.
 | `/sdd-onboard` | Existing project: detect toolchain → gate, docs index, UI standard |
 | `/sdd-clarify PROJ-123` | Resolve requirement ambiguities via issue tracker |
 | `/sdd-start [desc]` | Rigor, branch, shaping, spec, scenario audit, design exploration |
-| `/sdd-discuss` | Persona challenge of the plan (xhigh/max default; on demand anywhere) |
 | `/sdd-architect` | Binding architecture plan (high+ default) |
+| `/sdd-discuss` | Persona challenge of spec + architecture (xhigh/max default; on demand anywhere) |
 | `/sdd-tasks` | Scenario-grouped task breakdown |
 | `/sdd-implement` | TDD implementation per the tier's engine |
 | `/sdd-validate` | Gate + tier-scaled review |
