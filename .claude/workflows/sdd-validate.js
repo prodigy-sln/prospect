@@ -4,11 +4,13 @@ export const meta = {
   whenToUse: 'Invoked by the /sdd-validate skill at rigor high and above. Args: {specFolder, manifest, calibration, passNumber}',
   phases: [
     { title: 'Review', detail: 'correctness, coverage, and quality reviewers in parallel' },
-    { title: 'Verify', detail: 'adversarial check of every candidate finding against the code' },
+    { title: 'Verify', detail: 'adversarial check of each candidate finding — empty when the reviewers report none' },
   ],
 }
 
-const { specFolder, manifest, calibration, passNumber = 1 } = args
+// The harness may deliver `args` as a JSON string rather than an object.
+const input = typeof args === 'string' ? JSON.parse(args) : args
+const { specFolder, manifest, calibration, passNumber = 1 } = input ?? {}
 if (!specFolder || !Array.isArray(manifest) || !calibration) {
   throw new Error('sdd-validate requires args: {specFolder, manifest: string[], calibration, passNumber?}')
 }
@@ -90,6 +92,15 @@ const results = await pipeline(
     const candidates = review.findings
       .filter(f => f.severity !== 'Info')
       .filter(f => f.file && f.file.length > 0 && f.failure_scenario && f.failure_scenario.length > 0)
+
+    // The Verify phase is conditional: a clean review spawns no verifiers, so
+    // say so rather than leaving an empty phase to read as a stuck run.
+    const discarded = review.findings.filter(f => f.severity !== 'Info').length - candidates.length
+    log(
+      candidates.length === 0
+        ? `${d.key}: ${review.verdict}, no candidate findings — nothing to verify`
+        : `${d.key}: verifying ${candidates.length} finding(s)${discarded > 0 ? `, ${discarded} discarded below the evidence bar` : ''}`,
+    )
 
     const verified = await parallel(
       candidates.map(f => () =>
