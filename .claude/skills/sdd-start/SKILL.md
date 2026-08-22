@@ -1,89 +1,46 @@
 ---
 name: sdd-start
-description: "Start a feature: choose rigor, create branch and spec folder, gather requirements, write and audit the specification"
-argument-hint: "[feature description or ISSUE-KEY]"
+description: "Start work: classify work-type and rigor, create branch and spec folder, then hand off to the resolver"
+argument-hint: "[description or ISSUE-KEY]"
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task, AskUserQuestion
 ---
 
-# Start a Feature
+# Start
 
-Take a feature from description to a reviewed, audited specification.
+Take a request from description to a resolvable spec folder.
 
-## Step 1: Rigor
+## Step 1: Classify
 
-Recommend a tier and let the user confirm; record it as `rigor:` in the spec
-frontmatter.
+Recommend and confirm with the user in ONE question round:
 
-- **low** — isolated small change, no cross-cutting impact
-- **medium** — default
-- **high** — mandatory floor when the feature touches auth, payments,
-  personal data, compliance, or destructive migrations
-- **xhigh / max** — contested plans, many stakeholders (adds `/sdd-discuss`)
+- **work-type** — `feature` (new or changed behavior) · `fix` (defined by a
+  defect; root cause + regression) · `decision` (the deliverable is ADRs,
+  contracts, conventions) · `docs` (documentation only) · `chore`
+  (non-behavioral: refactor, tooling, dependencies)
+- **rigor** — `low` (isolated, no cross-cutting impact) · `medium`
+  (default) · `high` (mandatory floor when auth, payments, personal data,
+  compliance, or destructive migrations are touched) · `xhigh`/`max`
+  (contested plans, many stakeholders)
 
-Escalate later whenever new risk appears (record the reason in the
-frontmatter). Downgrade only with explicit user confirmation, recorded.
+Record both in the spec frontmatter. Escalate later when new risk appears
+(record the reason); downgrade only with explicit user confirmation.
 
 ## Step 2: Branch & Folder
 
-Branch `feature/YYYY-MM-DD-short-name` (issue-driven:
-`feature/KEY-123-short-name`). Folder `specs/active/YYYY-MM-DD-short-name/`.
+Branch `[type]/YYYY-MM-DD-short-name` (issue-driven:
+`[type]/KEY-123-short-name`), where `[type]` is `feature`, `bugfix`, or
+`chore` (docs and decision work use `feature/`). Create
+`specs/active/YYYY-MM-DD-short-name/` containing:
 
-The spec file is ALWAYS `specs/active/[folder]/spec.md` — only the template
-differs by tier: at `low`, create it from
-`specs/_templates/spec-mini.template.md` and skip to Step 4; otherwise
-create it from `specs/_templates/spec.template.md` plus an empty
-`requirements.md`.
+- `spec.md` — frontmatter only for now (id, title, status: active,
+  work-type, rigor, branch, created) from the matching template in
+  `.prospect/templates/`
+- `requirements.md` with a `## Clarifications` ledger (`- [status] Q: … →
+  A: …`, status one of `resolved | open | assumed`), seeded from the issue
+  or conversation. `/sdd-clarify` fills it from the tracker when one is
+  connected.
 
-## Step 3: Shape
+## Step 3: Hand off
 
-1. If `docs/INDEX.md` exists, read the docs it routes for this topic before
-   touching code.
-2. Delegate codebase discovery to an Explore subagent; request a compact
-   report only: relevant components, patterns to follow, integration
-   points, reuse candidates.
-3. Ask the user the questions the codebase cannot answer (decision-shaped,
-   with options and a default). For issue-driven features, run
-   `/sdd-clarify` first.
-4. **UI surface detected** → also ask look & feel: key screens; empty,
-   loading, and error states; density and tone; responsive targets; visual
-   references; existing components to use. Integration questions alone are
-   insufficient for UI features.
-5. Record everything in `requirements.md`.
-
-## Step 4: Specify
-
-Write the spec from the template. Scenarios follow
-`standards/global/scenario-guidelines.md`: every FR gets at least one
-happy-path and one unwanted-behavior scenario; UI states become scenarios.
-Out of Scope must be non-empty — if it is, ask the user what is excluded.
-Incorporate `## Discussion Findings` from requirements.md when present.
-
-## Step 5: Scenario Audit
-
-At `medium+`, spawn `sdd-scenario-auditor` with the spec path and
-scenario-guidelines path. At `low`, apply its checklist inline. Keep the gap
-report for Step 7.
-
-## Step 6: Design Exploration (UI features, when direction is unsettled)
-
-Offer to generate 1–3 self-contained HTML mockup variants in
-`specs/active/[folder]/visuals/`, each committing to a distinct direction.
-Apply `standards/global/ui-design.md` and deliberate visual design:
-aesthetic direction, typography, spacing — no template defaults. The user
-picks or mixes; record the approved direction in the spec's Visual Design
-section. It is binding for implementation.
-
-## Step 7: Review Handoff
-
-Present to the user together: spec summary, audit gaps (accept/reject each
-suggested scenario draft — accepted drafts merge into the spec), and design
-variants if any. After approval, commit: `docs(spec): add [feature] specification`.
-
-End with:
-
-```
-Spec approved and committed. Everything downstream needs is in
-specs/active/[folder]/ — safe to /clear.
-Next: /sdd-architect (high+, then /sdd-discuss at xhigh/max) or
-/sdd-tasks (medium) or /sdd-implement (low).
-```
+Run `bash .prospect/scripts/sdd-next.sh [folder]` and follow the returned
+prompt — it runs the specify phase for the chosen work-type and rigor.

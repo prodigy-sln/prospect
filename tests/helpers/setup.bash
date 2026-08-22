@@ -110,8 +110,10 @@ create_mock_artifact() {
   mkdir -p "$root/.claude/agents"
   mkdir -p "$root/.claude/skills/sdd-start"
   mkdir -p "$root/.claude/workflows"
+  mkdir -p "$root/.prospect/templates"
+  mkdir -p "$root/.prospect/prompts/shared"
+  mkdir -p "$root/.prospect/scripts"
   mkdir -p "$root/standards/global"
-  mkdir -p "$root/specs/_templates"
   mkdir -p "$root/specs/active"
   mkdir -p "$root/specs/archive"
   mkdir -p "$root/product"
@@ -123,16 +125,35 @@ create_mock_artifact() {
   echo "# Testing" > "$root/standards/global/testing.md"
   echo "# Git Workflow" > "$root/standards/global/git-workflow.md"
   echo "# CLAUDE.md template" > "$root/CLAUDE.md"
-  echo "# Spec Template" > "$root/specs/_templates/spec.template.md"
-  echo "# Tasks Template" > "$root/specs/_templates/tasks.template.md"
+  echo "# Spec Template" > "$root/.prospect/templates/spec.template.md"
+  echo "# Tasks Template" > "$root/.prospect/templates/tasks.template.md"
+  echo "# preamble" > "$root/.prospect/prompts/shared/preamble.md"
+  echo "# matrix" > "$root/.prospect/prompts/matrix.tsv"
+  echo "#!/usr/bin/env bash" > "$root/.prospect/scripts/sdd-next.sh"
   echo "# Spec Registry" > "$root/specs/REGISTRY.md"
   echo "# Mission Template" > "$root/product/mission.template.md"
   echo "# Roadmap Template" > "$root/product/roadmap.template.md"
   touch "$root/specs/active/.gitkeep"
   touch "$root/specs/archive/.gitkeep"
   echo "# README" > "$root/README.md"
+  echo "# install.sh" > "$root/install.sh"
+  echo "# install.ps1" > "$root/install.ps1"
+
+  bake_manifest "$root" "$version"
 
   echo "$root"
+}
+
+# bake_manifest <artifact_root> <version>
+# Regenerates the artifact's pre-baked .prospect-manifest.json. Tests that
+# mutate artifact content after create_mock_artifact must call this again,
+# exactly as the release build bakes the manifest after staging.
+bake_manifest() {
+  local root="${1:?artifact_root required}"
+  local version="${2:-v1.0.0}"
+  local repo_root
+  repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+  bash "$repo_root/scripts/build-manifest.sh" "$root" "$version"
 }
 
 # ── SHA-256 checksum (cross-platform) ──

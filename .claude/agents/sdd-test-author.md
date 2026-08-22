@@ -25,11 +25,15 @@ This is design work, not test generation.
 1. Read the assigned scenarios and both standards files.
 2. Study existing tests with Glob/Grep: file layout, naming, fixtures, mock
    idioms, test commands. Match them.
-3. Design the interface a consumer would want, then write **exactly one test
-   per scenario** with a behavioral name — scenario IDs never appear in test
-   names or code. Record the mapping in the spec folder's `test-map.md`
-   (one line per scenario: scenario ID → test file → test name). Cover what
-   the scenario asserts — no more.
+3. Design the interface a consumer would want, then write **at least one
+   test per scenario** with behavioral names — scenario IDs never appear in
+   test names or code. Add further tests for a scenario only where they
+   raise real behavior coverage: a distinct code path, a boundary, a
+   failure mode the first test cannot reach; where mutation tooling exists,
+   a surviving mutant is the objective justification. Record every test
+   under its scenario in the spec folder's `test-map.md` (one line per
+   mapping: scenario ID → test file → test name). No tests for anything
+   outside the assigned scenarios.
 4. Run the tests. Every test MUST fail. If one passes: determine whether the
    behavior already exists in the codebase or your test is defective. Fix
    defective tests; report already-satisfied scenarios as findings — do not

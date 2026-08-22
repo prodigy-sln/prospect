@@ -1,7 +1,7 @@
 export const meta = {
   name: 'sdd-validate',
   description: 'Spec validation: parallel specialist reviewers, per-finding adversarial verification, deterministic merge',
-  whenToUse: 'Invoked by the /sdd-validate skill at rigor high and above. Args: {specFolder, manifest, calibration, passNumber}',
+  whenToUse: 'Invoked by the validate phase at rigor high and above. Args: {specFolder, manifest, calibration, passNumber}',
   phases: [
     { title: 'Review', detail: 'correctness, coverage, and quality reviewers in parallel' },
     { title: 'Verify', detail: 'adversarial check of each candidate finding — empty when the reviewers report none' },
@@ -10,9 +10,16 @@ export const meta = {
 
 // The harness may deliver `args` as a JSON string rather than an object.
 const input = typeof args === 'string' ? JSON.parse(args) : args
-const { specFolder, manifest, calibration, passNumber = 1 } = input ?? {}
-if (!specFolder || !Array.isArray(manifest) || !calibration) {
-  throw new Error('sdd-validate requires args: {specFolder, manifest: string[], calibration, passNumber?}')
+const { specFolder, calibration, passNumber = 1 } = input ?? {}
+// Manifest arrives as a string[] or as one newline-joined string; accept both.
+const rawManifest = input?.manifest
+const manifest = Array.isArray(rawManifest)
+  ? rawManifest.map(s => String(s).trim()).filter(Boolean)
+  : typeof rawManifest === 'string'
+    ? rawManifest.split(/\r?\n/).map(s => s.trim()).filter(Boolean)
+    : null
+if (!specFolder || !manifest || manifest.length === 0 || !calibration) {
+  throw new Error('sdd-validate requires args: {specFolder, manifest: string[] | newline-joined string, calibration, passNumber?}')
 }
 
 const REVIEW_SCHEMA = {
@@ -29,6 +36,7 @@ const REVIEW_SCHEMA = {
           id: { type: 'string' },
           verdict: { type: 'string', enum: ['PASS', 'FAIL', 'PARTIAL', 'GAP'] },
           location: { type: 'string' },
+          reason: { type: 'string' },
         },
       },
     },
@@ -86,7 +94,7 @@ const results = await pipeline(
       schema: REVIEW_SCHEMA,
     }),
   async (review, d) => {
-    if (!review) return null
+    if (!review) return { dimension: d.key, dead: true, review: null, findings: [] }
 
     // Evidence bar: no citation or no concrete failure scenario -> discarded.
     const candidates = review.findings
@@ -102,6 +110,8 @@ const results = await pipeline(
         : `${d.key}: verifying ${candidates.length} finding(s)${discarded > 0 ? `, ${discarded} discarded below the evidence bar` : ''}`,
     )
 
+    // A verifier that dies or errors must degrade its finding to 'plausible',
+    // never make it vanish.
     const verified = await parallel(
       candidates.map(f => () =>
         agent(
@@ -116,47 +126,70 @@ const results = await pipeline(
             ...manifest,
           ].join('\n'),
           { label: `verify:${d.key}:${f.file}`, phase: 'Verify', schema: VERDICT_SCHEMA, model: 'sonnet' },
-        ).then(v => ({ ...f, verification: v ? v.verdict : 'plausible', verificationReason: v ? v.reason : 'verifier unavailable' })),
+        )
+          .then(v => ({ ...f, verification: v ? v.verdict : 'plausible', verificationReason: v ? v.reason : 'verifier unavailable' }))
+          .catch(e => ({ ...f, verification: 'plausible', verificationReason: `verifier error: ${e && e.message ? e.message : 'unknown'}` })),
       ),
     )
 
-    return { dimension: d.key, review, findings: verified.filter(Boolean) }
+    return { dimension: d.key, dead: false, review, findings: verified.filter(Boolean) }
   },
 )
 
 const dimensions = results.filter(Boolean)
+const deadDimensions = dimensions.filter(r => r.dead).map(r => r.dimension)
+const liveDimensions = dimensions.filter(r => !r.dead)
 
-let findings = dimensions.flatMap(r => r.findings).filter(f => f.verification !== 'refuted')
+let findings = liveDimensions.flatMap(r => r.findings).filter(f => f.verification !== 'refuted')
 
 // Convergence: a re-validation pass only raises Major and above.
 if (passNumber >= 2) {
   findings = findings.filter(f => f.severity === 'Blocker' || f.severity === 'Major')
 }
 
-const bySeverity = s => findings.filter(f => f.severity === s)
+// Only confirmed findings can block; plausible findings are reported for the
+// human but never decide the verdict.
+const confirmed = findings.filter(f => f.verification === 'confirmed')
+const plausible = findings.filter(f => f.verification !== 'confirmed')
+
+const bySeverity = s => confirmed.filter(f => f.severity === s)
 const blockers = bySeverity('Blocker')
 const majors = bySeverity('Major')
 const minors = bySeverity('Minor')
 const reportedMinors = minors.slice(0, 5)
 
-const failedScenarios = dimensions
-  .flatMap(r => (r.review.scenarios || []).map(s => ({ ...s, dimension: r.dimension })))
-  .filter(s => s.verdict !== 'PASS')
+const allScenarios = liveDimensions.flatMap(r => (r.review.scenarios || []).map(s => ({ ...s, dimension: r.dimension })))
+// FAIL/PARTIAL block; GAP is an honest abstention (reviewer could not earn a
+// verdict) — reported for the human, never counted as a failure.
+const failedScenarios = allScenarios.filter(s => s.verdict === 'FAIL' || s.verdict === 'PARTIAL')
+const abstentions = allScenarios.filter(s => s.verdict === 'GAP')
 
-const info = dimensions.flatMap(r => r.review.findings.filter(f => f.severity === 'Info'))
+const info = liveDimensions.flatMap(r => r.review.findings.filter(f => f.severity === 'Info'))
 
+// Fail closed: a reviewer that never reported cannot be treated as a clean
+// review. Any dead dimension forces FAIL with the reason attached.
 const verdict =
-  blockers.length + majors.length + minors.length === 0 && failedScenarios.length === 0 ? 'PASS' : 'FAIL'
+  deadDimensions.length > 0
+    ? 'FAIL'
+    : blockers.length + majors.length + minors.length === 0 && failedScenarios.length === 0
+      ? 'PASS'
+      : 'FAIL'
 
-log(`Validation pass ${passNumber}: ${verdict} — B${blockers.length} M${majors.length} m${minors.length} (Info ${info.length})`)
+log(
+  `Validation pass ${passNumber}: ${verdict} — confirmed B${blockers.length} M${majors.length} m${minors.length}` +
+    ` (plausible ${plausible.length}, Info ${info.length}${deadDimensions.length ? `, dead reviewers: ${deadDimensions.join(',')}` : ''})`,
+)
 
 return {
   verdict,
   passNumber,
-  counts: { blocker: blockers.length, major: majors.length, minor: minors.length, info: info.length },
+  deadDimensions,
+  counts: { blocker: blockers.length, major: majors.length, minor: minors.length, plausible: plausible.length, info: info.length },
   findings: [...blockers, ...majors, ...reportedMinors],
+  plausibleFindings: plausible,
   minorOverflow: Math.max(0, minors.length - reportedMinors.length),
   failedScenarios,
+  abstentions,
   info,
-  perDimension: dimensions.map(r => ({ dimension: r.dimension, verdict: r.review.verdict, findings: r.findings.length })),
+  perDimension: liveDimensions.map(r => ({ dimension: r.dimension, verdict: r.review.verdict, findings: r.findings.length })),
 }

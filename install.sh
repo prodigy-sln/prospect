@@ -150,22 +150,29 @@ download_release() {
 
 # classify_file <relative_path>
 # Echoes the category of the file: "framework", "customizable", "user-content",
-# "template", or "install-once". Used by the installer to decide how to handle
-# each file on install and update.
+# "template", "install-once", or "excluded". Used by the installer to decide how
+# to handle each file on install and update.
 #   framework/customizable/template — written on install, conflict-checked on update
 #   user-content                    — never touched when it already exists
 #   install-once                    — seeded when absent, never overwritten (REGISTRY)
+#   excluded                        — ships in the artifact, never enters a project
 classify_file() {
   local path="$1"
 
   case "$path" in
+    install.sh|install.ps1|README.md|.prospect-manifest.json|.prospect-version)
+      # Installer plumbing and the framework's own README. They belong to the
+      # release artifact, not to the target repository — copying README.md
+      # would overwrite the project's own.
+      echo "excluded"
+      ;;
     specs/REGISTRY.md)
       echo "install-once"
       ;;
     product/mission.template.md|product/roadmap.template.md)
       echo "template"
       ;;
-    .claude/agents/*|.claude/skills/*|.claude/workflows/*|specs/_templates/*)
+    .claude/agents/*|.claude/skills/*|.claude/workflows/*|.prospect/*)
       echo "framework"
       ;;
     standards/global/*.md|CLAUDE.md)
@@ -201,33 +208,61 @@ _compute_sha256() {
 
 # ── Manifest read/write ────────────────────────────────────────────────────────
 
-# write_manifest <target_dir> <version> <file1> [file2] ...
-# Writes .prospect-manifest.json to target_dir.
-# Each file argument is a relative path; the function computes its sha256
-# from the actual file at target_dir/relative_path (FR-4.2).
+# write_manifest <target_dir> <version> [<rel_path> <sha256>]...
+# Writes .prospect-manifest.json to target_dir (FR-4.2).
+#
+# Checksums are supplied by the caller and are always the checksum of the
+# content Prospect shipped. The function deliberately cannot hash files in
+# target_dir: on a conflicted update the file there holds the user's edits,
+# and recording those as the baseline would make the next update mistake the
+# file for pristine and overwrite it.
 write_manifest() {
   local target_dir="$1"
   local version="$2"
   shift 2
-  local files=("$@")
 
-  # Build files JSON object.
   local files_json=""
-  local first_file=1
-  for rel_path in "${files[@]}"; do
-    local checksum
-    checksum="$(_compute_sha256 "$target_dir/$rel_path")"
-    if [[ $first_file -eq 1 ]]; then
-      files_json="\"$rel_path\":\"$checksum\""
-      first_file=0
-    else
-      files_json="$files_json,\"$rel_path\":\"$checksum\""
-    fi
+  while [[ $# -gt 1 ]]; do
+    [[ -n "$files_json" ]] && files_json="${files_json},"
+    files_json="${files_json}\"$1\":\"$2\""
+    shift 2
   done
 
   printf '{"version":"%s","files":{%s}}\n' \
     "$version" "$files_json" \
     > "$target_dir/.prospect-manifest.json"
+}
+
+# _manifest_lookup <manifest_file> <relative_path>
+# Echoes the stored sha256 for relative_path, or nothing when absent.
+_manifest_lookup() {
+  local manifest="$1"
+  local rel_path="$2"
+
+  [[ -f "$manifest" ]] || return 0
+
+  # Escape characters that are special in basic regex.
+  local escaped
+  escaped="$(printf '%s' "$rel_path" | sed 's/[.[\/*^$]/\\&/g')"
+
+  grep -o "\"$escaped\":\"[^\"]*\"" "$manifest" \
+    | sed "s/\"$escaped\":\"//;s/\"$//" \
+    || true
+}
+
+# shipped_checksum <source_dir> <relative_path>
+# Echoes the sha256 of the file as shipped, read from the artifact's baked
+# manifest. Falls back to hashing the artifact file for releases built before
+# the manifest was baked at build time.
+shipped_checksum() {
+  local source_dir="$1"
+  local rel_path="$2"
+
+  local checksum
+  checksum="$(_manifest_lookup "$source_dir/.prospect-manifest.json" "$rel_path")"
+  [[ -n "$checksum" ]] || checksum="$(_compute_sha256 "$source_dir/$rel_path")"
+
+  printf '%s' "$checksum"
 }
 
 # read_manifest_version <target_dir>
@@ -250,17 +285,8 @@ read_manifest_version() {
 read_manifest_checksum() {
   local target_dir="$1"
   local rel_path="$2"
-  local manifest="$target_dir/.prospect-manifest.json"
 
-  [[ -f "$manifest" ]] || { echo ""; return 0; }
-
-  # Escape characters that are special in basic regex: . / * [ ]
-  local escaped
-  escaped="$(printf '%s' "$rel_path" | sed 's/[.[\/*^$]/\\&/g')"
-
-  grep -o "\"$escaped\":\"[^\"]*\"" "$manifest" \
-    | sed "s/\"$escaped\":\"//;s/\"$//" \
-    || true
+  _manifest_lookup "$target_dir/.prospect-manifest.json" "$rel_path"
 }
 
 # ── Version file ───────────────────────────────────────────────────────────────
@@ -307,14 +333,14 @@ install_files() {
         category="$(classify_file "$rel_path")"
         [[ "$category" == "user-content" ]] && continue
         [[ "$category" == "install-once" ]] && continue
+        [[ "$category" == "excluded" ]] && continue
 
         local target_file="$target_dir/$rel_path"
         [[ ! -f "$target_file" ]] && { any_diff=1; break; }
 
-        local src_sum target_sum
-        src_sum="$(_compute_sha256 "$src_file")"
+        local target_sum
         target_sum="$(_compute_sha256 "$target_file")"
-        if [[ "$src_sum" != "$target_sum" ]]; then
+        if [[ "$(shipped_checksum "$source_dir" "$rel_path")" != "$target_sum" ]]; then
           any_diff=1
           break
         fi
@@ -331,6 +357,8 @@ install_files() {
   local -a installed_files=()
   local -a skipped_files=()
   local -a conflict_files=()
+  # Flat rel_path/checksum pairs for the new manifest.
+  local -a manifest_pairs=()
 
   # FR-5.4: Ensure required directories exist.
   mkdir -p "$target_dir/specs/active"
@@ -348,6 +376,11 @@ install_files() {
     category="$(classify_file "$rel_path")"
 
     local target_file="$target_dir/$rel_path"
+
+    # Installer plumbing never enters the target repository.
+    if [[ "$category" == "excluded" ]]; then
+      continue
+    fi
 
     # FR-5.3: user-content — never touch if file already exists.
     if [[ "$category" == "user-content" ]]; then
@@ -368,83 +401,53 @@ install_files() {
       mkdir -p "$(dirname "$target_file")"
       cp "$src_file" "$target_file"
       installed_files+=("$rel_path")
+      manifest_pairs+=("$rel_path" "$(shipped_checksum "$source_dir" "$rel_path")")
       continue
     fi
 
     # Ensure parent directory exists.
     mkdir -p "$(dirname "$target_file")"
 
-    if [[ $manifest_exists -eq 0 ]]; then
-      # Fresh install: copy everything (FR-3.1).
+    # The checksum of this file as shipped becomes the tracked baseline
+    # whatever the outcome below — it describes what Prospect offered, never
+    # what the target repository happens to hold.
+    local shipped_sum
+    shipped_sum="$(shipped_checksum "$source_dir" "$rel_path")"
+    manifest_pairs+=("$rel_path" "$shipped_sum")
+
+    if [[ ! -f "$target_file" ]]; then
+      # FR-3.1: not present yet — copy it.
+      cp "$src_file" "$target_file"
+      installed_files+=("$rel_path")
+      continue
+    fi
+
+    local current_sum baseline_sum
+    current_sum="$(_compute_sha256 "$target_file")"
+    baseline_sum="$(read_manifest_checksum "$target_dir" "$rel_path")"
+
+    if [[ "$current_sum" == "$shipped_sum" ]]; then
+      # Already the shipped content — nothing to do, and no conflict even if
+      # the user arrived there by hand.
+      installed_files+=("$rel_path")
+    elif [[ -n "$baseline_sum" && "$current_sum" == "$baseline_sum" ]]; then
+      # FR-3.2: tracked and unmodified — overwrite silently.
       cp "$src_file" "$target_file"
       installed_files+=("$rel_path")
     else
-      # Update: checksum-based conflict detection (FR-3.2, FR-3.3).
-      local manifest_sum
-      manifest_sum="$(read_manifest_checksum "$target_dir" "$rel_path")"
-
-      if [[ ! -f "$target_file" ]]; then
-        # New file in this version — just copy it.
-        cp "$src_file" "$target_file"
-        installed_files+=("$rel_path")
-      elif [[ -z "$manifest_sum" ]]; then
-        # File not previously tracked (new in this version) — copy it.
-        cp "$src_file" "$target_file"
-        installed_files+=("$rel_path")
-      else
-        local current_sum
-        current_sum="$(_compute_sha256 "$target_file")"
-
-        if [[ "$current_sum" == "$manifest_sum" ]]; then
-          # FR-3.2: Unmodified — overwrite silently with new version.
-          cp "$src_file" "$target_file"
-          installed_files+=("$rel_path")
-        else
-          # FR-3.3: User-modified — write as .prospect-incoming.
-          cp "$src_file" "${target_file}.prospect-incoming"
-          conflict_files+=("$rel_path")
-        fi
-      fi
+      # FR-3.3: user-modified, or untracked content that predates the install
+      # (installing into a populated repository) — offer the new version
+      # alongside rather than overwrite.
+      cp "$src_file" "${target_file}.prospect-incoming"
+      conflict_files+=("$rel_path")
     fi
   done < <(find "$source_dir" -type f -print0)
 
   # Write manifest and version file (FR-4.1, FR-4.2).
-  # Collect all files currently installed (existing + newly installed).
-  local -a manifest_files=()
-  for f in "${installed_files[@]}"; do
-    manifest_files+=("$f")
-  done
-  # Also include previously-tracked files that weren't touched (conflicts or unchanged).
-  if [[ $manifest_exists -eq 1 ]]; then
-    for f in "${conflict_files[@]}"; do
-      manifest_files+=("$f")
-    done
-    # Re-add any files already in manifest that we didn't touch.
-    # (They remain installed from prior run.)
-    # "version" is always skipped; "toolchains" is skipped for tolerance of
-    # manifests written by older installer versions.
-    local prev_files
-    if prev_files="$(grep -o '"[^"]*":"[^"]*"' "$target_dir/.prospect-manifest.json" \
-        | grep -v '"version"' | grep -v '"toolchains"' | sed 's/:"[^"]*"//' | tr -d '"' 2>/dev/null)"; then
-      while IFS= read -r prev_file; do
-        [[ -z "$prev_file" ]] && continue
-        # Skip if already in our list.
-        local already=0
-        for m in "${manifest_files[@]:-}"; do
-          [[ "$m" == "$prev_file" ]] && { already=1; break; }
-        done
-        if [[ $already -eq 0 && -f "$target_dir/$prev_file" ]]; then
-          manifest_files+=("$prev_file")
-        fi
-      done <<< "$prev_files"
-    fi
-  fi
-
-  if [[ ${#manifest_files[@]} -gt 0 ]]; then
-    write_manifest "$target_dir" "$version" "${manifest_files[@]}"
-  else
-    write_manifest "$target_dir" "$version"
-  fi
+  # Entries cover exactly what this release ships and the installer manages;
+  # paths dropped by the release, and files skipped as user content, fall out
+  # of tracking.
+  write_manifest "$target_dir" "$version" "${manifest_pairs[@]:-}"
   write_version_file "$target_dir" "$version"
 
   # FR-3.4: Print summary.
@@ -462,6 +465,51 @@ install_files() {
     done
     echo "  Review and merge the .prospect-incoming files to complete the update."
   fi
+
+  PROSPECT_CONFLICT_COUNT=${#conflict_files[@]}
+}
+
+# ── Conflict merge ─────────────────────────────────────────────────────────────
+
+# The merge brief handed to Claude Code. Kept free of quotes so it survives
+# being printed as a copy-pasteable command.
+PROSPECT_MERGE_PROMPT="Integrate the .prospect-incoming files from the prospect sdd framework update into the current solution. Make sure you understand the changes made and also understand the intent of the current project specific changes. Incorporate the project specific changes into the updated files. The goal is to have the update with the project specifics included. The update takes precedence over the local file structure. If something changed materially during the update (incoming files), make sure to incorporate that change."
+
+# _is_interactive
+# True when a terminal is attached. Uses /dev/tty rather than stdin so the
+# canonical `curl … | bash` install still counts as interactive.
+# Tests override this.
+_is_interactive() {
+  [[ -z "${PROSPECT_NONINTERACTIVE:-}" ]] || return 1
+  [[ -r /dev/tty && -w /dev/tty ]]
+}
+
+# _ask_yes_no <question>
+# Asks on the terminal; true only on an explicit yes. Tests override this.
+_ask_yes_no() {
+  local answer=""
+  printf '%s' "$1" > /dev/tty
+  read -r answer < /dev/tty || return 1
+  [[ "$answer" == [yY] || "$answer" == [yY][eE][sS] ]]
+}
+
+# propose_merge <target_dir>
+# Offers to hand the conflicts to Claude Code, and prints the command whenever
+# it does not run it — declined, unavailable, or no terminal attached.
+propose_merge() {
+  local target_dir="$1"
+
+  if command -v claude > /dev/null 2>&1 && _is_interactive; then
+    if _ask_yes_no "  Run Claude Code now to merge the incoming changes? [y/N] "; then
+      ( cd "$target_dir" && claude "$PROSPECT_MERGE_PROMPT" )
+      return 0
+    fi
+  fi
+
+  echo
+  echo "  To merge them with Claude Code, run:"
+  echo
+  echo "    claude \"$PROSPECT_MERGE_PROMPT\""
 }
 
 # ── Main ───────────────────────────────────────────────────────────────────────
@@ -490,7 +538,12 @@ main() {
     source_dir="$tmp_dir"
   fi
 
+  PROSPECT_CONFLICT_COUNT=0
   install_files "$source_dir" "$PWD" "$version"
+
+  if [[ ${PROSPECT_CONFLICT_COUNT:-0} -gt 0 ]]; then
+    propose_merge "$PWD"
+  fi
 }
 
 if [[ "${_PROSPECT_SOURCED:-}" != "1" && "${BASH_SOURCE[0]}" == "${0}" ]]; then

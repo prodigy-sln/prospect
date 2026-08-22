@@ -129,8 +129,8 @@ test_fresh_install_copies_all_files() {
   assert_file_exists "$target_dir/CLAUDE.md" \
     || _fail "CLAUDE.md must be installed"
 
-  assert_file_exists "$target_dir/specs/_templates/spec.template.md" \
-    || _fail "specs/_templates/spec.template.md must be installed"
+  assert_file_exists "$target_dir/.prospect/templates/spec.template.md" \
+    || _fail ".prospect/templates/spec.template.md must be installed"
 
   assert_file_exists "$target_dir/specs/REGISTRY.md" \
     || _fail "specs/REGISTRY.md must be seeded on fresh install"
@@ -239,6 +239,7 @@ test_update_overwrites_unmodified_files() {
   local source_v2
   source_v2="$(_artifact_root "$artifact_v2" "v2.0.0")"
   echo "# Architect Agent v2" > "$source_v2/.claude/agents/sdd-architect.md"
+  bake_manifest "$source_v2" "v2.0.0"
 
   install_files "$source_v2" "$target_dir" "v2.0.0" \
     || _fail "update install (v2.0.0) exited non-zero"
@@ -284,6 +285,7 @@ test_update_creates_incoming_for_modified_files() {
   local source_v2
   source_v2="$(_artifact_root "$artifact_v2" "v2.0.0")"
   echo "# Architect Agent v2 content" > "$source_v2/.claude/agents/sdd-architect.md"
+  bake_manifest "$source_v2" "v2.0.0"
 
   install_files "$source_v2" "$target_dir" "v2.0.0" \
     || _fail "update install (v2.0.0) exited non-zero"
@@ -332,6 +334,7 @@ test_update_prints_conflict_summary() {
   local source_v2
   source_v2="$(_artifact_root "$artifact_v2" "v2.0.0")"
   echo "# Architect Agent v2" > "$source_v2/.claude/agents/sdd-architect.md"
+  bake_manifest "$source_v2" "v2.0.0"
 
   local output
   output="$(install_files "$source_v2" "$target_dir" "v2.0.0" 2>&1)" \
@@ -444,6 +447,7 @@ test_registry_never_overwritten_on_update() {
   local source_v2
   source_v2="$(_artifact_root "$artifact_v2" "v2.0.0")"
   echo "# Spec Registry v2 seed" > "$source_v2/specs/REGISTRY.md"
+  bake_manifest "$source_v2" "v2.0.0"
 
   install_files "$source_v2" "$target_dir" "v2.0.0" \
     || _fail "update install (v2.0.0) exited non-zero"
@@ -455,6 +459,263 @@ test_registry_never_overwritten_on_update() {
   # No .prospect-incoming must be created for the registry.
   assert_file_not_exists "$target_dir/specs/REGISTRY.md.prospect-incoming" \
     || _fail ".prospect-incoming must NOT be created for specs/REGISTRY.md"
+}
+
+# ── Tests: conflicted files stay conflicted across updates ────────────────────
+
+# test_conflict_does_not_record_user_checksum
+#
+# When an update conflicts, the manifest must record the checksum of the
+# content Prospect shipped — never the checksum of the user's file that was
+# left in place. Recording the user's checksum makes the file look pristine
+# on the next update.
+test_conflict_does_not_record_user_checksum() {
+  _require_function install_files
+
+  local artifact_v1="$TEST_DIR/artifact_v1"
+  local artifact_v2="$TEST_DIR/artifact_v2"
+  local target_dir="$TEST_DIR/target"
+  mkdir -p "$artifact_v1" "$artifact_v2" "$target_dir"
+  _make_target_git_repo "$target_dir"
+
+  create_mock_artifact "$artifact_v1" "v1.0.0"
+  install_files "$(_artifact_root "$artifact_v1" "v1.0.0")" "$target_dir" "v1.0.0" \
+    || _fail "fresh install (v1.0.0) exited non-zero"
+
+  local rel_path=".claude/agents/sdd-architect.md"
+  echo "# My custom architect agent" > "$target_dir/$rel_path"
+
+  create_mock_artifact "$artifact_v2" "v2.0.0"
+  local source_v2
+  source_v2="$(_artifact_root "$artifact_v2" "v2.0.0")"
+  echo "# Architect Agent v2 content" > "$source_v2/$rel_path"
+  bake_manifest "$source_v2" "v2.0.0"
+
+  install_files "$source_v2" "$target_dir" "v2.0.0" \
+    || _fail "update install (v2.0.0) exited non-zero"
+
+  local recorded user_sum shipped_sum
+  recorded="$(read_manifest_checksum "$target_dir" "$rel_path")"
+  user_sum="$(compute_checksum "$target_dir/$rel_path")"
+  shipped_sum="$(compute_checksum "$source_v2/$rel_path")"
+
+  [[ "$recorded" != "$user_sum" ]] \
+    || _fail "manifest recorded the user's modified file as the tracked baseline"
+
+  assert_eq "$shipped_sum" "$recorded" \
+    || _fail "manifest must record the shipped v2 checksum for a conflicted file"
+}
+
+# test_second_update_after_unmerged_conflict_preserves_user_file
+#
+# The user's file survives repeated updates for as long as the conflict is
+# unmerged: each update writes a fresh .prospect-incoming and never clobbers
+# the local edits.
+test_second_update_after_unmerged_conflict_preserves_user_file() {
+  _require_function install_files
+
+  local target_dir="$TEST_DIR/target"
+  mkdir -p "$target_dir"
+  _make_target_git_repo "$target_dir"
+
+  local rel_path=".claude/agents/sdd-architect.md"
+
+  create_mock_artifact "$TEST_DIR/a1" "v1.0.0"
+  install_files "$(_artifact_root "$TEST_DIR/a1" "v1.0.0")" "$target_dir" "v1.0.0" \
+    || _fail "fresh install (v1.0.0) exited non-zero"
+
+  echo "# My custom architect agent" > "$target_dir/$rel_path"
+
+  create_mock_artifact "$TEST_DIR/a2" "v2.0.0"
+  local source_v2
+  source_v2="$(_artifact_root "$TEST_DIR/a2" "v2.0.0")"
+  echo "# Architect Agent v2 content" > "$source_v2/$rel_path"
+  bake_manifest "$source_v2" "v2.0.0"
+  install_files "$source_v2" "$target_dir" "v2.0.0" \
+    || _fail "update to v2.0.0 exited non-zero"
+
+  # The user ignores the incoming file and updates again.
+  create_mock_artifact "$TEST_DIR/a3" "v3.0.0"
+  local source_v3
+  source_v3="$(_artifact_root "$TEST_DIR/a3" "v3.0.0")"
+  echo "# Architect Agent v3 content" > "$source_v3/$rel_path"
+  bake_manifest "$source_v3" "v3.0.0"
+  install_files "$source_v3" "$target_dir" "v3.0.0" \
+    || _fail "update to v3.0.0 exited non-zero"
+
+  assert_file_contains "$target_dir/$rel_path" "My custom architect agent" \
+    || _fail "the second update overwrote the user's still-unmerged file"
+
+  assert_file_contains "$target_dir/${rel_path}.prospect-incoming" "v3 content" \
+    || _fail ".prospect-incoming must carry the newest shipped content"
+}
+
+# test_conflict_resolved_by_accepting_incoming_stops_conflicting
+#
+# Once the user adopts the shipped content, the file is tracked as pristine
+# again and later updates apply silently.
+test_conflict_resolved_by_accepting_incoming_stops_conflicting() {
+  _require_function install_files
+
+  local target_dir="$TEST_DIR/target"
+  mkdir -p "$target_dir"
+  _make_target_git_repo "$target_dir"
+
+  local rel_path=".claude/agents/sdd-architect.md"
+
+  create_mock_artifact "$TEST_DIR/a1" "v1.0.0"
+  install_files "$(_artifact_root "$TEST_DIR/a1" "v1.0.0")" "$target_dir" "v1.0.0" \
+    || _fail "fresh install exited non-zero"
+
+  echo "# My custom architect agent" > "$target_dir/$rel_path"
+
+  create_mock_artifact "$TEST_DIR/a2" "v2.0.0"
+  local source_v2
+  source_v2="$(_artifact_root "$TEST_DIR/a2" "v2.0.0")"
+  echo "# Architect Agent v2 content" > "$source_v2/$rel_path"
+  bake_manifest "$source_v2" "v2.0.0"
+  install_files "$source_v2" "$target_dir" "v2.0.0" \
+    || _fail "update to v2.0.0 exited non-zero"
+
+  # User accepts the incoming file wholesale.
+  mv "$target_dir/${rel_path}.prospect-incoming" "$target_dir/$rel_path"
+
+  create_mock_artifact "$TEST_DIR/a3" "v3.0.0"
+  local source_v3
+  source_v3="$(_artifact_root "$TEST_DIR/a3" "v3.0.0")"
+  echo "# Architect Agent v3 content" > "$source_v3/$rel_path"
+  bake_manifest "$source_v3" "v3.0.0"
+  install_files "$source_v3" "$target_dir" "v3.0.0" \
+    || _fail "update to v3.0.0 exited non-zero"
+
+  assert_file_contains "$target_dir/$rel_path" "v3 content" \
+    || _fail "a resolved file must be updated silently by the next release"
+
+  assert_file_not_exists "$target_dir/${rel_path}.prospect-incoming" \
+    || _fail "no conflict may be reported once the user adopted the shipped content"
+}
+
+# ── Tests: installer plumbing never lands in the target ───────────────────────
+
+# test_install_scripts_and_readme_not_installed
+#
+# The release artifact carries install.sh, install.ps1 and the framework's own
+# README so the tarball is self-contained, but installing must not drop them
+# into the target project — README.md would overwrite the project's own.
+test_install_scripts_and_readme_not_installed() {
+  _require_function install_files
+
+  local artifact_dir="$TEST_DIR/artifact"
+  local target_dir="$TEST_DIR/target"
+  mkdir -p "$artifact_dir" "$target_dir"
+  _make_target_git_repo "$target_dir"
+
+  echo "# My project" > "$target_dir/README.md"
+
+  create_mock_artifact "$artifact_dir" "v1.0.0"
+  install_files "$(_artifact_root "$artifact_dir" "v1.0.0")" "$target_dir" "v1.0.0" \
+    || _fail "fresh install exited non-zero"
+
+  assert_file_contains "$target_dir/README.md" "My project" \
+    || _fail "the project's README.md must not be replaced by the framework README"
+
+  assert_file_not_exists "$target_dir/install.sh" \
+    || _fail "install.sh must not be installed into the target project"
+  assert_file_not_exists "$target_dir/install.ps1" \
+    || _fail "install.ps1 must not be installed into the target project"
+
+  local manifest="$target_dir/.prospect-manifest.json"
+  assert_not_contains "$(cat "$manifest")" '"install.sh"' \
+    || _fail "install.sh must not be tracked in the manifest"
+  assert_not_contains "$(cat "$manifest")" '"README.md"' \
+    || _fail "README.md must not be tracked in the manifest"
+}
+
+# test_fresh_install_does_not_clobber_existing_file
+#
+# Installing into a repository that already carries a file Prospect ships
+# (e.g. its own CLAUDE.md) must offer the framework version as
+# .prospect-incoming rather than overwrite work that predates the install.
+test_fresh_install_does_not_clobber_existing_file() {
+  _require_function install_files
+
+  local artifact_dir="$TEST_DIR/artifact"
+  local target_dir="$TEST_DIR/target"
+  mkdir -p "$artifact_dir" "$target_dir"
+  _make_target_git_repo "$target_dir"
+
+  echo "# Existing project instructions" > "$target_dir/CLAUDE.md"
+
+  create_mock_artifact "$artifact_dir" "v1.0.0"
+  install_files "$(_artifact_root "$artifact_dir" "v1.0.0")" "$target_dir" "v1.0.0" \
+    || _fail "fresh install exited non-zero"
+
+  assert_file_contains "$target_dir/CLAUDE.md" "Existing project instructions" \
+    || _fail "a pre-existing CLAUDE.md must survive a fresh install"
+
+  assert_file_exists "$target_dir/CLAUDE.md.prospect-incoming" \
+    || _fail "the framework CLAUDE.md must be offered as .prospect-incoming"
+}
+
+# ── Tests: merging conflicts with Claude Code ─────────────────────────────────
+
+# test_merge_proposal_prints_command_when_non_interactive
+#
+# Without a terminal (CI, `curl | bash` in a pipeline) the installer prints the
+# ready-to-paste claude command instead of asking.
+test_merge_proposal_prints_command_when_non_interactive() {
+  _require_function propose_merge
+
+  _is_interactive() { return 1; }
+
+  local output
+  output="$(propose_merge "$TEST_DIR" 2>&1)" \
+    || _fail "propose_merge exited non-zero"
+
+  assert_contains "$output" 'claude "' \
+    || _fail "must print the claude command; got: $output"
+  assert_contains "$output" ".prospect-incoming" \
+    || _fail "the printed prompt must reference the .prospect-incoming files"
+}
+
+# test_merge_proposal_runs_claude_when_accepted
+#
+# In an interactive shell the installer offers to run Claude Code and does so
+# when the user accepts.
+test_merge_proposal_runs_claude_when_accepted() {
+  _require_function propose_merge
+
+  _is_interactive() { return 0; }
+  _ask_yes_no() { return 0; }
+  claude() { printf '%s' "$1" > "$TEST_DIR/claude-invoked"; }
+
+  propose_merge "$TEST_DIR" > /dev/null 2>&1 \
+    || _fail "propose_merge exited non-zero"
+
+  assert_file_exists "$TEST_DIR/claude-invoked" \
+    || _fail "claude must be invoked when the user accepts"
+  assert_file_contains "$TEST_DIR/claude-invoked" "prospect-incoming" \
+    || _fail "claude must receive the merge prompt"
+}
+
+# test_merge_proposal_prints_command_when_declined
+#
+# Declining leaves the command behind so it can be run later.
+test_merge_proposal_prints_command_when_declined() {
+  _require_function propose_merge
+
+  _is_interactive() { return 0; }
+  _ask_yes_no() { return 1; }
+  claude() { touch "$TEST_DIR/claude-invoked"; }
+
+  local output
+  output="$(propose_merge "$TEST_DIR" 2>&1)" \
+    || _fail "propose_merge exited non-zero"
+
+  assert_file_not_exists "$TEST_DIR/claude-invoked" \
+    || _fail "claude must not run when the user declines"
+  assert_contains "$output" 'claude "' \
+    || _fail "must print the claude command after declining; got: $output"
 }
 
 # ── Tests: FR-7.1 — non-git directory warning ─────────────────────────────────

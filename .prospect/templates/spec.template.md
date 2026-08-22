@@ -2,6 +2,7 @@
 id: SPEC-XXX
 title: [Feature Title]
 status: active
+work-type: feature
 rigor: medium          # low | medium | high | xhigh | max
 branch: feature/YYYY-MM-DD-feature-name
 jira: [PROJ-XXX — remove if not applicable]
@@ -24,9 +25,10 @@ author: [name]
 
 ## Functional Requirements
 
-[Scenario rules: standards/global/scenario-guidelines.md. Each scenario
-becomes exactly one test, mapped in this folder's test-map.md. Every FR
-needs at least one happy-path and one unwanted-behavior scenario.]
+[Scenario rules: standards/global/scenario-guidelines.md. Each scenario is
+the floor of at least one test, mapped in this folder's test-map.md. Every
+FR needs at least one happy-path and one unwanted-behavior scenario. Past
+~40 scenarios, propose merges and get user confirmation.]
 
 ### [Requirement Group]
 
@@ -34,10 +36,15 @@ needs at least one happy-path and one unwanted-behavior scenario.]
   - FR-1.1-S1: WHEN [trigger] THE SYSTEM SHALL [observable outcome]
   - FR-1.1-S2: IF [error condition] THEN THE SYSTEM SHALL [observable outcome]
 
+## Architecture Delta
+
+[New binding decisions this feature introduces: external dependencies,
+module boundaries, data models, public contracts. Write `none` when it
+only extends existing structures — the architect phase then never runs.]
+
 ## Technical Considerations
 
 - [Key decision and rationale]
-- [Data model / API contracts, if applicable]
 
 ## Existing Code to Leverage
 
@@ -49,7 +56,7 @@ needs at least one happy-path and one unwanted-behavior scenario.]
 
 [Only for features with UI surface — otherwise delete this section.]
 
-- Approved direction: [visuals/variant-N.html or description] — binding for implementation
+- Approved direction: [visuals/variant-N.html or description] — binding
 - Empty, loading, and error states are covered by scenarios above
 - Project design language: standards/global/ui-design.md
 
@@ -70,9 +77,3 @@ needs at least one happy-path and one unwanted-behavior scenario.]
 ## Open Questions
 
 [Must be empty before implementation starts.]
-
-## Clarifications
-
-### Session YYYY-MM-DD
-
-- Q: [question] → A: [answer]

@@ -57,7 +57,7 @@ function New-MockArtifact([string]$DestDir, [string]$Version = "v1.0.0") {
     $root = Join-Path $DestDir "prospect-$Version"
     $dirs = @(
         ".claude/agents", ".claude/skills/sdd-start", ".claude/workflows",
-        "standards/global", "specs/_templates", "specs/active", "specs/archive",
+        "standards/global", ".prospect/templates", ".prospect/prompts/shared", ".prospect/scripts", "specs/active", "specs/archive",
         "product"
     )
     foreach ($d in $dirs) { New-Item -ItemType Directory -Path (Join-Path $root $d) -Force | Out-Null }
@@ -70,12 +70,14 @@ function New-MockArtifact([string]$DestDir, [string]$Version = "v1.0.0") {
         "standards/global/testing.md" = "# Testing"
         "standards/global/git-workflow.md" = "# Git Workflow"
         "CLAUDE.md" = "# CLAUDE.md template"
-        "specs/_templates/spec.template.md" = "# Spec Template"
-        "specs/_templates/tasks.template.md" = "# Tasks Template"
+        ".prospect/templates/spec.template.md" = "# Spec Template"
+        ".prospect/templates/tasks.template.md" = "# Tasks Template"
         "specs/REGISTRY.md" = "# Spec Registry"
         "product/mission.template.md" = "# Mission Template"
         "product/roadmap.template.md" = "# Roadmap Template"
         "README.md" = "# README"
+        "install.sh" = "# install.sh"
+        "install.ps1" = "# install.ps1"
     }
     foreach ($kv in $files.GetEnumerator()) {
         [System.IO.File]::WriteAllText((Join-Path $root $kv.Key), $kv.Value)
@@ -83,7 +85,24 @@ function New-MockArtifact([string]$DestDir, [string]$Version = "v1.0.0") {
     "" | Set-Content (Join-Path $root "specs/active/.gitkeep")
     "" | Set-Content (Join-Path $root "specs/archive/.gitkeep")
 
+    Set-MockManifest -ArtifactRoot $root -Version $Version
+
     return $root
+}
+
+# Bakes the artifact's .prospect-manifest.json, mirroring what the release
+# build does after staging. Tests that mutate artifact content afterwards must
+# call this again.
+function Set-MockManifest([string]$ArtifactRoot, [string]$Version = "v1.0.0") {
+    $entries = @()
+    Get-ChildItem -Path $ArtifactRoot -Recurse -File -Force | Sort-Object FullName | ForEach-Object {
+        $rel = $_.FullName.Substring($ArtifactRoot.Length).TrimStart('\', '/') -replace '\\', '/'
+        if ($_.Name -eq ".gitkeep") { return }
+        if ((Get-FileCategory -RelativePath $rel) -in @("excluded", "user-content")) { return }
+        $entries += "`"$rel`":`"$(Get-Sha256 -FilePath $_.FullName)`""
+    }
+    $json = "{`"version`":`"$Version`",`"files`":{$($entries -join ',')}}"
+    [System.IO.File]::WriteAllText((Join-Path $ArtifactRoot ".prospect-manifest.json"), $json)
 }
 
 function Invoke-Tests {

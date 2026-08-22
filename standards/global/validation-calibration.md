@@ -30,7 +30,14 @@ blocks, lead the summary with "no blocking issues".
 - Generated code, lockfiles, vendored dependencies
 - Anything CI already enforces (formatting, lint rules, type errors)
 
+## Blocking
+
+At rigor `medium`, Minor findings are reported, never blocking — they
+become tracked issues at completion. At `high+`, only findings the
+verification stage CONFIRMS can block; plausible findings are reported for
+the human.
+
 ## Re-review
 
 On a second validation pass, report only NEW findings of severity Major or
-higher.
+higher, and re-verify fixes in place of fresh full sweeps.

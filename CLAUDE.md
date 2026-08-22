@@ -3,78 +3,85 @@
 This project uses **Prospect** for spec-driven development (SDD) with
 test-driven development.
 
-## Workflow
+## Pipeline
 
-```
-/sdd-start [feature]  →  (/sdd-architect)  →  (/sdd-discuss)  →  /sdd-tasks
-    →  /sdd-implement  →  /sdd-validate  →  /sdd-complete
-```
+`/sdd-start` classifies the work and creates the spec folder; from there a
+deterministic resolver (`.prospect/scripts/sdd-next.sh`) reads the folder's
+frontmatter and disk state, picks the next phase, and composes its prompt
+from `.prospect/prompts/` fragments. `/sdd-next` runs one phase;
+`/sdd-auto` loops phases unattended in fresh contexts under
+`.prospect/autonomy.md`. The LLM never branches on work-type or rigor —
+the matrix (`.prospect/prompts/matrix.tsv`) does.
 
-`/sdd-discuss` runs after the spec and (at high+) the architecture draft
-exist, so personas challenge actual binding decisions instead of an early
-plan.
+Every spec carries `work-type:` and `rigor:` in its frontmatter.
 
-Every spec carries a rigor tier in its frontmatter. Each tier strictly adds
-to the previous one; escalate whenever new risk appears (record the reason),
-downgrade only with explicit user confirmation.
+| `work-type:` | Path (phases) | Deliverable |
+|---|---|---|
+| feature | specify → [architect] → [discuss] → tasks → implement → validate → complete | behavior, TDD per scenario |
+| decision | specify → discuss → decide → [implement] → validate → complete | ADRs, contracts, enforcement checks |
+| fix | specify (root cause; RCA at high+) → implement → validate → complete | regression tests + narrowest fix |
+| docs | edit → complete | documentation only |
+| chore | work → complete | non-behavioral change, gate-guarded |
 
-| `rigor:` | Spec | Discuss | Tasks | Implement | Validate |
-|----------|------|---------|-------|-----------|----------|
-| low | mini-spec | — | — | inline TDD | gate script |
-| medium (default) | full + scenarios | — | scenario groups | test author + inline | gate + combined reviewer |
-| high | + architecture | — | same | same | gate + reviewer workflow, sign-off |
-| xhigh | same | parallel persona reviews | same | same | same |
-| max | same | negotiating agent team | same | same | same |
+Rigor scales verification, not ceremony: `low` gate-only · `medium`
+(default) combined reviewer · `high` 3-reviewer workflow with verification
+and sign-off · `xhigh` parallel personas · `max` negotiating personas.
+The architect phase runs only when the spec declares a non-empty
+`## Architecture Delta`. Escalate rigor whenever new risk appears (record
+the reason); downgrade only with explicit user confirmation.
 
 ## Key Principles
 
 1. **Specs are the source of truth.** Acceptance scenarios (EARS) are the
-   test contract: each scenario becomes exactly one test. The mapping lives
-   in the spec folder's `test-map.md` — test names stay behavioral, and
-   code never carries spec or scenario IDs.
+   test contract: each scenario is the floor of at least one test; the 1:N
+   mapping lives in the spec folder's `test-map.md`. Test names stay
+   behavioral; code never carries spec or scenario IDs.
 2. **TDD is non-negotiable.** Failing test output is displayed before any
    implementation. At `medium+`, tests are authored and owned by the test
    author — implementation never edits test files; disputes go to
    arbitration.
-3. **`docs/` is as-built reality.** Completed specs consolidate into
-   `docs/` via `docs/INDEX.md` routing. Future concepts live in
-   `specs/active/` and `product/roadmap.md`, never in `docs/`.
+3. **Architecture is standing.** `docs/architecture.md` holds the module
+   map, boundaries, and project constants; specs declare deltas only.
 4. **Gates are deterministic.** `scripts/sdd-gate.*` must exit 0 at every
-   phase end, before validation, and before completion.
-5. **Out of Scope is binding.** Unspecced work is recorded, not built.
-6. **Phases resume from disk.** After spec or tasks approval, `/clear` is
-   safe and recommended — no phase depends on conversation history.
+   phase end and before validation and completion. Gate amendments are a
+   project-level decision with a runtime budget — never a spec deliverable.
+5. **Artifacts have budgets.** `.prospect/scripts/sdd-artifact-lint.sh`
+   enforces caps (tasks 60 lines, one map line per test, registry entries
+   ≤50 words); overflow knowledge consolidates into `docs/`.
+6. **Out of Scope is binding.** Unspecced work is recorded, not built.
+7. **Phases resume from disk.** After any commit boundary `/clear` is safe;
+   the resolver reconstructs state. `metrics.md` records per-phase
+   timestamps for cost accountability.
 
 ## Commands
 
 | Command | Purpose |
 |---------|---------|
 | `/sdd-init-project` | New project: Q&A → structure, standards, gate, docs index |
-| `/sdd-onboard` | Existing project: detect toolchain → gate, docs index, UI standard |
-| `/sdd-clarify PROJ-123` | Resolve requirement ambiguities via issue tracker |
-| `/sdd-start [desc]` | Rigor, branch, shaping, spec, scenario audit, design exploration |
-| `/sdd-architect` | Binding architecture plan (high+ default) |
-| `/sdd-discuss` | Persona challenge of spec + architecture (xhigh/max default; on demand anywhere) |
-| `/sdd-tasks` | Scenario-grouped task breakdown |
-| `/sdd-implement` | TDD implementation per the tier's engine |
-| `/sdd-validate` | Gate + tier-scaled review |
-| `/sdd-complete` | Publish (docs, registry, PR); finalize after approval |
+| `/sdd-onboard` | Existing project: detect toolchain → gate, docs index, standing architecture |
+| `/sdd-start [desc]` | Classify work-type + rigor, branch, folder, hand off to resolver |
+| `/sdd-next [folder]` | Resolve and run the next phase |
+| `/sdd-auto [folder]` | Drive remaining phases unattended (autonomy policy) |
+| `/sdd-clarify PROJ-123` | Fill the clarifications ledger via the issue tracker |
+| `/sdd-discuss` | Persona challenge on demand (`--phase discuss`) |
 | `/consolidate-docs [path]` | Merge any source material into docs/ |
 
 ## Locations
 
-- Active specs: `specs/active/YYYY-MM-DD-name/` (stay active through PR review)
-- Registry: `specs/REGISTRY.md` — permanent one-line record per completed spec
-- Templates: `specs/_templates/` · Living docs: `docs/` (routed by `INDEX.md`)
-- Quality gate: `scripts/sdd-gate.*`
+- Active specs: `specs/active/YYYY-MM-DD-name/` (spec, requirements ledger,
+  test-map, metrics, decisions)
+- Registry: `specs/REGISTRY.md` — one line ≤50 words per completed spec
+- Framework runtime: `.prospect/` (resolver, prompts, templates, autonomy
+  policy) — framework-owned, overwritten on update; do not edit in projects
+- Living docs: `docs/` routed by `docs/INDEX.md` · Standing architecture:
+  `docs/architecture.md`
 
 ## Prospect Settings
 
-- `spec-disposal: delete` — default: the spec folder is removed at finalize
-  (after PR approval); `main` never carries it. Set `archive` (+
-  `retention: [days]`, default 180) for regulated projects or when branch
-  protection dismisses approvals on new commits: the folder moves to
-  `specs/archive/YYYY/` at publish and expired folders are pruned there.
+- `spec-disposal: delete` — default; `archive` (+ `retention: [days]`,
+  default 180) for regulated projects or strict branch protection.
+- `review-mode: team` — default; `solo` lets the complete phase merge
+  directly after validation PASS (single-maintainer projects).
 
 ## Standards
 
@@ -84,10 +91,8 @@ downgrade only with explicit user confirmation.
 
 Scenario rules (`standards/global/scenario-guidelines.md`) and review
 calibration (`standards/global/validation-calibration.md`) are injected by
-the skills that need them. The calibration file is meant to be tuned per
-project (severity definitions, skip rules, Minor cap) — its content must
-always read as direct reviewer instructions, since it lands verbatim in
-review prompts.
+the phases that need them. The calibration file is tuned per project; its
+content must read as direct reviewer instructions.
 
 ## Before Writing Code
 

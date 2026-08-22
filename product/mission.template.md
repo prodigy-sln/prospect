@@ -44,11 +44,9 @@
 ## Development Workflow
 
 ```
-/sdd-start [feature]     # Rigor, shaping, spec with audited scenarios
-/sdd-tasks               # Scenario-grouped task breakdown
-/sdd-implement           # TDD implementation
-/sdd-validate            # Quality gate + tier-scaled review
-/sdd-complete            # Consolidate docs, register, PR, finalize
+/sdd-start [work]        # Classify work-type + rigor, branch, spec folder
+/sdd-next                # Resolve and run the next phase (repeat to done)
+/sdd-auto                # Or: drive remaining phases unattended
 ```
 
 ## Links

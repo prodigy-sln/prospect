@@ -80,8 +80,8 @@ test_artifact_contains_shared_files() {
 
   assert_dir_exists "$root/standards" "standards/ must be in artifact" \
     || _fail "standards/ missing from artifact"
-  assert_dir_exists "$root/specs/_templates" "specs/_templates/ must be in artifact" \
-    || _fail "specs/_templates/ missing from artifact"
+  assert_dir_exists "$root/.prospect/templates" ".prospect/templates/ must be in artifact" \
+    || _fail ".prospect/templates/ missing from artifact"
   assert_file_exists "$root/specs/REGISTRY.md" "specs/REGISTRY.md must be in artifact" \
     || _fail "specs/REGISTRY.md missing from artifact"
   assert_file_exists "$root/CLAUDE.md" "CLAUDE.md must be in artifact" \
@@ -99,6 +99,43 @@ test_artifact_contains_scripts() {
     || _fail "install.sh missing from artifact"
   assert_file_exists "$root/install.ps1" "install.ps1 must be in artifact" \
     || _fail "install.ps1 missing from artifact"
+}
+
+# The manifest is baked by the release build, so the installer never derives
+# baseline checksums from files sitting in the target repository.
+test_artifact_contains_prebaked_manifest() {
+  local root
+  root=$(_build_and_extract "v1.0.0")
+
+  local manifest="$root/.prospect-manifest.json"
+  assert_file_exists "$manifest" ".prospect-manifest.json must be baked into the artifact" \
+    || _fail ".prospect-manifest.json missing from artifact"
+
+  assert_file_contains "$manifest" '"version":"v1.0.0"' \
+    || _fail "baked manifest must record the release version"
+
+  # Every checksum must match the file as shipped in the artifact.
+  local rel expected
+  rel="standards/global/testing.md"
+  expected="$(compute_checksum "$root/$rel")"
+  assert_file_contains "$manifest" "\"$rel\":\"$expected\"" \
+    || _fail "baked manifest must record the shipped checksum for $rel"
+}
+
+# Installer plumbing ships in the artifact but is never installed, so it must
+# not appear in the manifest either.
+test_artifact_manifest_excludes_installer_plumbing() {
+  local root
+  root=$(_build_and_extract "v1.0.0")
+
+  local content
+  content="$(cat "$root/.prospect-manifest.json")"
+
+  local key
+  for key in '"install.sh"' '"install.ps1"' '"README.md"' '".prospect-manifest.json"'; do
+    assert_not_contains "$content" "$key" \
+      || _fail "baked manifest must not track $key"
+  done
 }
 
 # FR-8.3: artifact includes .gitkeep markers for empty spec directories

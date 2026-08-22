@@ -28,17 +28,23 @@ Ask (decision-shaped, with defaults):
 
 Create the project skeleton for the chosen stack, plus:
 
-- `docs/INDEX.md` from `specs/_templates/docs-index.template.md` with the
-  chosen branches and an initial routing guide
+- `docs/INDEX.md` from `.prospect/templates/docs-index.template.md` with
+  the chosen branches and an initial routing guide
+- `docs/architecture.md` skeleton: module map, dependency directions,
+  volatility table, project constants — specs declare only deltas against it
 - `product/mission.md` and `product/roadmap.md` from `product/` templates
-- `CLAUDE.md` tech-stack section filled in
+- `CLAUDE.md`: tech-stack section and the Prospect settings block
+  (`spec-disposal`, `review-mode: solo | team` — ask; recommend `solo` for
+  a single maintainer)
 
 ## Step 3: Quality Gate
 
 Generate `scripts/sdd-gate.sh` and/or `scripts/sdd-gate.ps1` wiring the
 chosen tools in order: formatter check, linter (zero warnings), type
-check, test suite, coverage threshold. Non-zero exit on any failure with a
-compact failure list. Run it once on the skeleton to prove it's green.
+check, test suite, coverage threshold, and a final stage calling
+`bash .prospect/scripts/sdd-artifact-lint.sh` on the active spec folder
+when one exists. Non-zero exit on any failure with a compact failure list.
+Run it once on the skeleton to prove it's green.
 
 ## Step 4: UI Design Standard (UI projects)
 
