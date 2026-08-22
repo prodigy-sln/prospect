@@ -253,6 +253,11 @@ update overwrote the user's edits.
 - **FR-3.8**: After a conflict summary, the installer offers to run Claude Code
   on the incoming files when a terminal is attached and `claude` is on PATH,
   and otherwise prints the command.
+- **FR-3.9**: The merge brief names the version range the update spans and
+  links the release notes and the tag comparison for it, so the merge follows
+  the framework's intent rather than the incoming diff alone. The previous
+  version is read from `.prospect-version` before it is overwritten; without
+  one, the brief links the release list only.
 - **FR-5.5**: `install.sh`, `install.ps1`, `README.md`, and the tracking files
   ship in the artifact but are never written into a target project and never
   tracked — the framework README would otherwise replace the project's own.
