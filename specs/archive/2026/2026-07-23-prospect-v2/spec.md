@@ -1,7 +1,7 @@
 ---
 id: SPEC-003
 title: Prospect v2 — Lightweight SDD with TDD/BDD
-status: active
+status: implemented
 branch: feature/2026-07-23-prospect-v2
 rigor: high
 created: 2026-07-23

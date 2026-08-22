@@ -718,6 +718,32 @@ test_merge_proposal_prints_command_when_declined() {
     || _fail "must print the claude command after declining; got: $output"
 }
 
+# ── Tests: empty source ───────────────────────────────────────────────────────
+
+# test_empty_source_fails_loudly
+#
+# An artifact that did not extract must abort the install rather than report
+# success having written nothing.
+test_empty_source_fails_loudly() {
+  _require_function install_files
+
+  local source_dir="$TEST_DIR/empty"
+  local target_dir="$TEST_DIR/target"
+  mkdir -p "$source_dir" "$target_dir"
+  _make_target_git_repo "$target_dir"
+
+  local output status
+  status=0
+  output="$(install_files "$source_dir" "$target_dir" "v1.0.0" 2>&1)" || status=$?
+
+  [[ $status -ne 0 ]] \
+    || _fail "install_files must fail when the source has no files"
+  assert_contains "$output" "no files found" \
+    || _fail "the error must say the artifact is empty; got: $output"
+  assert_file_not_exists "$target_dir/.prospect-manifest.json" \
+    || _fail "no manifest may be written for a failed install"
+}
+
 # ── Tests: FR-7.1 — non-git directory warning ─────────────────────────────────
 
 # test_non_git_repo_warning
