@@ -132,4 +132,40 @@ function Test_Merge_Proposal_Prints_Command_When_Non_Interactive([string]$TestDi
     Assert-Contains $output ".prospect-incoming" "the printed prompt must reference the incoming files"
 }
 
+function Test_Merge_Prompt_Cites_The_Version_Range([string]$TestDir) {
+    $prompt = Get-MergePrompt -PreviousVersion "v2.0.0" -CurrentVersion "v3.0.0"
+
+    Assert-Contains $prompt "/compare/v2.0.0...v3.0.0" "the brief must link the tag comparison"
+    Assert-Contains $prompt "/releases" "the brief must link the release notes"
+    Assert-Contains $prompt ".prospect-incoming" "the brief must describe the merge task"
+}
+
+function Test_Merge_Prompt_Without_A_Previous_Version([string]$TestDir) {
+    $prompt = Get-MergePrompt -PreviousVersion "" -CurrentVersion "v3.0.0"
+
+    Assert-Contains $prompt "/releases" "the brief must link the release notes"
+    Assert-NotContains $prompt "/compare/" "no tag comparison is possible without a previous version"
+}
+
+function Test_Install_Reports_The_Version_It_Replaced([string]$TestDir) {
+    $targetDir = _run_install $TestDir "v1.0.0"
+    $artifactDir = New-MockArtifact -DestDir $TestDir -Version "v2.0.0"
+
+    Install-Files -SourceDir $artifactDir -TargetDir $targetDir `
+        -InstallVersion "v2.0.0" | Out-Null
+
+    Assert-Contains $script:ProspectPreviousVersion "v1.0.0" `
+        "Install-Files must report the version it replaced"
+}
+
+function Test_Merge_Proposal_Carries_The_Version_Range([string]$TestDir) {
+    function Test-Interactive { return $false }
+
+    $output = (Invoke-ProposeMerge -TargetDir $TestDir `
+        -PreviousVersion "v2.0.0" -CurrentVersion "v3.0.0" 6>&1 | Out-String)
+
+    Assert-Contains $output "/compare/v2.0.0...v3.0.0" `
+        "the printed command must carry the tag comparison"
+}
+
 Invoke-Tests

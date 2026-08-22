@@ -718,6 +718,102 @@ test_merge_proposal_prints_command_when_declined() {
     || _fail "must print the claude command after declining; got: $output"
 }
 
+# ── Tests: the merge brief cites the release history ──────────────────────────
+
+# test_merge_prompt_cites_the_version_range
+#
+# Merging incoming files well needs the framework's intent, which lives in the
+# release notes — so the brief names both versions and links the tag comparison.
+test_merge_prompt_cites_the_version_range() {
+  _require_function merge_prompt
+
+  local prompt
+  prompt="$(merge_prompt "v2.0.0" "v3.0.0")"
+
+  assert_contains "$prompt" "v2.0.0" \
+    || _fail "the brief must name the version being updated from; got: $prompt"
+  assert_contains "$prompt" "v3.0.0" \
+    || _fail "the brief must name the version being updated to; got: $prompt"
+  assert_contains "$prompt" "/compare/v2.0.0...v3.0.0" \
+    || _fail "the brief must link the tag comparison; got: $prompt"
+  assert_contains "$prompt" "/releases" \
+    || _fail "the brief must link the release notes; got: $prompt"
+}
+
+# test_merge_prompt_without_a_previous_version
+#
+# A first install into a populated repository has no previous version to
+# compare against; the brief still points at the release notes.
+test_merge_prompt_without_a_previous_version() {
+  _require_function merge_prompt
+
+  local prompt
+  prompt="$(merge_prompt "" "v3.0.0")"
+
+  assert_contains "$prompt" "/releases" \
+    || _fail "the brief must link the release notes; got: $prompt"
+  assert_not_contains "$prompt" "/compare/" \
+    || _fail "no tag comparison is possible without a previous version; got: $prompt"
+  assert_contains "$prompt" ".prospect-incoming" \
+    || _fail "the brief must still describe the merge task; got: $prompt"
+}
+
+# test_merge_prompt_survives_being_pasted
+#
+# The brief is printed inside claude "..." — characters the shell would expand
+# there turn the copy-pasteable command into something else.
+test_merge_prompt_survives_being_pasted() {
+  _require_function merge_prompt
+
+  local prompt
+  prompt="$(merge_prompt "v2.0.0" "v3.0.0")"
+
+  [[ "$prompt" != *'"'* ]] || _fail "the brief must not contain double quotes"
+  [[ "$prompt" != *'`'* ]] || _fail "the brief must not contain backticks"
+  [[ "$prompt" != *'$'* ]] || _fail "the brief must not contain dollar signs"
+}
+
+# test_install_reports_the_version_it_replaced
+#
+# propose_merge can only cite the range if install_files remembers what was
+# there before it wrote the new version file.
+test_install_reports_the_version_it_replaced() {
+  _require_function install_files
+
+  local artifact_dir="$TEST_DIR/artifact"
+  local target_dir="$TEST_DIR/target"
+  mkdir -p "$artifact_dir" "$target_dir"
+  _make_target_git_repo "$target_dir"
+
+  create_mock_artifact "$artifact_dir" "v1.0.0"
+  install_files "$(_artifact_root "$artifact_dir" "v1.0.0")" "$target_dir" "v1.0.0" \
+    > /dev/null || _fail "first install exited non-zero"
+
+  create_mock_artifact "$artifact_dir" "v2.0.0"
+  install_files "$(_artifact_root "$artifact_dir" "v2.0.0")" "$target_dir" "v2.0.0" \
+    > /dev/null || _fail "second install exited non-zero"
+
+  assert_eq "v1.0.0" "${PROSPECT_PREVIOUS_VERSION:-}" \
+    || _fail "install_files must report the version it replaced"
+}
+
+# test_merge_proposal_carries_the_version_range
+#
+# The command the installer prints is the one the user runs — the range has to
+# be in it, not merely available to the function.
+test_merge_proposal_carries_the_version_range() {
+  _require_function propose_merge
+
+  _is_interactive() { return 1; }
+
+  local output
+  output="$(propose_merge "$TEST_DIR" "v2.0.0" "v3.0.0" 2>&1)" \
+    || _fail "propose_merge exited non-zero"
+
+  assert_contains "$output" "/compare/v2.0.0...v3.0.0" \
+    || _fail "the printed command must carry the tag comparison; got: $output"
+}
+
 # ── Tests: empty source ───────────────────────────────────────────────────────
 
 # test_empty_source_fails_loudly
