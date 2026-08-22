@@ -299,6 +299,14 @@ write_version_file() {
   printf '%s\n' "$version" > "$target_dir/.prospect-version"
 }
 
+# read_installed_version <target_dir>
+# The version a previous install recorded; empty when Prospect is new here.
+read_installed_version() {
+  local version_file="$1/.prospect-version"
+  [[ -f "$version_file" ]] || return 0
+  tr -d '\r\n' < "$version_file"
+}
+
 # ── Install orchestration ──────────────────────────────────────────────────────
 
 # install_files <source_dir> <target_dir> <version>
@@ -315,6 +323,10 @@ install_files() {
     echo "Error: no files found in $source_dir — the release artifact is empty or was not extracted." >&2
     return 1
   fi
+
+  # Read before write_version_file overwrites it — the merge brief needs the
+  # range this update spans.
+  PROSPECT_PREVIOUS_VERSION="$(read_installed_version "$target_dir")"
 
   # FR-7.1: Warn if target_dir is not a git repo, but continue.
   if [[ ! -d "$target_dir/.git" ]]; then
@@ -477,9 +489,28 @@ install_files() {
 
 # ── Conflict merge ─────────────────────────────────────────────────────────────
 
-# The merge brief handed to Claude Code. Kept free of quotes so it survives
-# being printed as a copy-pasteable command.
+# The merge brief handed to Claude Code. Kept free of quotes, backticks and
+# dollar signs so it survives being printed as a copy-pasteable command.
 PROSPECT_MERGE_PROMPT="Integrate the .prospect-incoming files from the prospect sdd framework update into the current solution. Make sure you understand the changes made and also understand the intent of the current project specific changes. Incorporate the project specific changes into the updated files. The goal is to have the update with the project specifics included. The update takes precedence over the local file structure. If something changed materially during the update (incoming files), make sure to incorporate that change."
+
+# merge_prompt [previous_version] [current_version]
+# The brief plus the release history that explains it. Diffing the incoming
+# files shows what changed; the release notes and the tag comparison show why,
+# which is what a conflict actually turns on.
+merge_prompt() {
+  local previous="${1:-}"
+  local current="${2:-}"
+  local history
+
+  if [[ -n "$previous" && -n "$current" && "$previous" != "$current" ]]; then
+    history="This update moved prospect from ${previous} to ${current}: read the release notes at ${PROSPECT_REPO_URL}/releases and compare the tags at ${PROSPECT_REPO_URL}/compare/${previous}...${current}, including every release in between, to see what the framework changed and why."
+  else
+    history="Read the prospect release notes at ${PROSPECT_REPO_URL}/releases and compare the recent tags there to see what the framework changed and why."
+  fi
+
+  printf '%s %s Let that intent, not the incoming file contents alone, decide how each conflict is merged.' \
+    "$PROSPECT_MERGE_PROMPT" "$history"
+}
 
 # _is_interactive
 # True when a terminal is attached. Uses /dev/tty rather than stdin so the
@@ -499,15 +530,17 @@ _ask_yes_no() {
   [[ "$answer" == [yY] || "$answer" == [yY][eE][sS] ]]
 }
 
-# propose_merge <target_dir>
+# propose_merge <target_dir> [previous_version] [current_version]
 # Offers to hand the conflicts to Claude Code, and prints the command whenever
 # it does not run it — declined, unavailable, or no terminal attached.
 propose_merge() {
   local target_dir="$1"
+  local prompt
+  prompt="$(merge_prompt "${2:-}" "${3:-}")"
 
   if command -v claude > /dev/null 2>&1 && _is_interactive; then
     if _ask_yes_no "  Run Claude Code now to merge the incoming changes? [y/N] "; then
-      ( cd "$target_dir" && claude "$PROSPECT_MERGE_PROMPT" )
+      ( cd "$target_dir" && claude "$prompt" )
       return 0
     fi
   fi
@@ -515,7 +548,7 @@ propose_merge() {
   echo
   echo "  To merge them with Claude Code, run:"
   echo
-  echo "    claude \"$PROSPECT_MERGE_PROMPT\""
+  echo "    claude \"$prompt\""
 }
 
 # ── Main ───────────────────────────────────────────────────────────────────────
@@ -545,10 +578,11 @@ main() {
   fi
 
   PROSPECT_CONFLICT_COUNT=0
+  PROSPECT_PREVIOUS_VERSION=""
   install_files "$source_dir" "$PWD" "$version"
 
   if [[ ${PROSPECT_CONFLICT_COUNT:-0} -gt 0 ]]; then
-    propose_merge "$PWD"
+    propose_merge "$PWD" "${PROSPECT_PREVIOUS_VERSION:-}" "$version"
   fi
 }
 

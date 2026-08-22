@@ -325,6 +325,16 @@ function Write-VersionFile {
     [System.IO.File]::WriteAllText($versionPath, "$InstallVersion`n", [System.Text.UTF8Encoding]::new($false))
 }
 
+# Read-InstalledVersion <targetDir>
+# The version a previous install recorded; empty when Prospect is new here.
+function Read-InstalledVersion {
+    param([string]$TargetDir)
+
+    $versionPath = Join-Path $TargetDir ".prospect-version"
+    if (-not (Test-Path $versionPath)) { return "" }
+    return (Get-Content $versionPath -Raw).Trim()
+}
+
 # ── Install orchestration ──────────────────────────────────────────────────────
 
 # Install-Files <sourceDir> <targetDir> <version>
@@ -342,6 +352,10 @@ function Install-Files {
         Write-Error "Error: no files found in $SourceDir — the release artifact is empty or was not extracted."
         return $false
     }
+
+    # Read before Write-VersionFile overwrites it — the merge brief needs the
+    # range this update spans.
+    $script:ProspectPreviousVersion = Read-InstalledVersion -TargetDir $TargetDir
 
     # FR-7.1: Warn if not a git repo, but continue.
     $gitDir = Join-Path $TargetDir ".git"
@@ -517,6 +531,30 @@ function Install-Files {
 # being printed as a copy-pasteable command.
 $PROSPECT_MERGE_PROMPT = "Integrate the .prospect-incoming files from the prospect sdd framework update into the current solution. Make sure you understand the changes made and also understand the intent of the current project specific changes. Incorporate the project specific changes into the updated files. The goal is to have the update with the project specifics included. The update takes precedence over the local file structure. If something changed materially during the update (incoming files), make sure to incorporate that change."
 
+# Get-MergePrompt [previousVersion] [currentVersion]
+# The brief plus the release history that explains it. Diffing the incoming
+# files shows what changed; the release notes and the tag comparison show why,
+# which is what a conflict actually turns on.
+function Get-MergePrompt {
+    param(
+        [string]$PreviousVersion = "",
+        [string]$CurrentVersion = ""
+    )
+
+    if ($PreviousVersion -and $CurrentVersion -and $PreviousVersion -ne $CurrentVersion) {
+        $history = "This update moved prospect from $PreviousVersion to $CurrentVersion" +
+            ": read the release notes at $PROSPECT_REPO_URL/releases and compare the tags at " +
+            "$PROSPECT_REPO_URL/compare/$PreviousVersion...$CurrentVersion, including every " +
+            "release in between, to see what the framework changed and why."
+    } else {
+        $history = "Read the prospect release notes at $PROSPECT_REPO_URL/releases and compare " +
+            "the recent tags there to see what the framework changed and why."
+    }
+
+    return "$PROSPECT_MERGE_PROMPT $history Let that intent, not the incoming file contents " +
+        "alone, decide how each conflict is merged."
+}
+
 # Test-Interactive
 # True when there is a console to ask on. Tests override this.
 function Test-Interactive {
@@ -536,13 +574,19 @@ function Request-YesNo {
 # Offers to hand the conflicts to Claude Code, and prints the command whenever
 # it does not run it — declined, unavailable, or no console attached.
 function Invoke-ProposeMerge {
-    param([string]$TargetDir)
+    param(
+        [string]$TargetDir,
+        [string]$PreviousVersion = "",
+        [string]$CurrentVersion = ""
+    )
+
+    $prompt = Get-MergePrompt -PreviousVersion $PreviousVersion -CurrentVersion $CurrentVersion
 
     $claude = Get-Command claude -ErrorAction SilentlyContinue
     if ($claude -and (Test-Interactive)) {
         if (Request-YesNo -Question "  Run Claude Code now to merge the incoming changes? [y/N]") {
             Push-Location $TargetDir
-            try { & $claude.Source $PROSPECT_MERGE_PROMPT }
+            try { & $claude.Source $prompt }
             finally { Pop-Location }
             return
         }
@@ -551,7 +595,7 @@ function Invoke-ProposeMerge {
     Write-Host ""
     Write-Host "  To merge them with Claude Code, run:"
     Write-Host ""
-    Write-Host "    claude `"$PROSPECT_MERGE_PROMPT`""
+    Write-Host "    claude `"$prompt`""
 }
 
 # ── Main ───────────────────────────────────────────────────────────────────────
@@ -595,6 +639,7 @@ function Main {
         }
 
         $script:ProspectConflictCount = 0
+        $script:ProspectPreviousVersion = ""
         $result = Install-Files -SourceDir $sourceDir -TargetDir $effectiveTargetDir `
             -InstallVersion $resolvedVersion
         if (-not $result) {
@@ -602,7 +647,9 @@ function Main {
         }
 
         if ($script:ProspectConflictCount -gt 0) {
-            Invoke-ProposeMerge -TargetDir $effectiveTargetDir
+            Invoke-ProposeMerge -TargetDir $effectiveTargetDir `
+                -PreviousVersion $script:ProspectPreviousVersion `
+                -CurrentVersion $resolvedVersion
         }
     }
     finally {
