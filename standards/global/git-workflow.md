@@ -9,7 +9,7 @@
   `feature/KEY-123-short-name`, `bugfix/` same pattern. Kebab-case, 2–4
   words, max 50 characters total.
 - The branch is created at the start of `/sdd-start`; all work — spec,
-  tests, code — happens on it; it merges only after `/sdd-validate`
+  tests, code — happens on it; it merges only after the validate phase
   passes.
 - `main` and `dev` are protected: no direct commits, no force-push, all
   changes via PR, CI must pass before merge.
