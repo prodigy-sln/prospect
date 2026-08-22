@@ -336,6 +336,13 @@ function Install-Files {
         [string]$InstallVersion
     )
 
+    # An empty source would otherwise report a successful install of nothing.
+    if (-not (Get-ChildItem -Path $SourceDir -Recurse -File -Force -ErrorAction SilentlyContinue |
+              Select-Object -First 1)) {
+        Write-Error "Error: no files found in $SourceDir — the release artifact is empty or was not extracted."
+        return $false
+    }
+
     # FR-7.1: Warn if not a git repo, but continue.
     $gitDir = Join-Path $TargetDir ".git"
     if (-not (Test-Path $gitDir)) {

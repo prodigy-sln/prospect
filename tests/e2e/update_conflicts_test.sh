@@ -80,13 +80,19 @@ _install_version() {
 
   local tmp_dir
   tmp_dir="$(mktemp -d)"
-  download_release "$version" "$tmp_dir"
-  local source_dir="$tmp_dir/prospect-${version}"
-  [[ -d "$source_dir" ]] || source_dir="$tmp_dir"
 
-  # Copy extracted source to a mutable staging dir so we can mutate v2 content.
+  # Extract and stage in sibling directories: download_release unpacks the
+  # archive's contents directly into its destination, so staging from that
+  # same directory would copy it into itself.
+  local extract_dir="$tmp_dir/extract"
   local stage_dir="$tmp_dir/stage"
-  cp -a "$source_dir" "$stage_dir"
+  mkdir -p "$extract_dir" "$stage_dir"
+
+  download_release "$version" "$extract_dir"
+  local source_dir="$extract_dir/prospect-${version}"
+  [[ -d "$source_dir" ]] || source_dir="$extract_dir"
+
+  cp -a "$source_dir/." "$stage_dir/"
 
   # Export so callers can mutate files before install.
   export _E2E_STAGE_DIR="$stage_dir"

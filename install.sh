@@ -310,6 +310,12 @@ install_files() {
   local target_dir="$2"
   local version="$3"
 
+  # An empty source would otherwise report a successful install of nothing.
+  if [[ -z "$(find "$source_dir" -type f 2>/dev/null | head -1)" ]]; then
+    echo "Error: no files found in $source_dir — the release artifact is empty or was not extracted." >&2
+    return 1
+  fi
+
   # FR-7.1: Warn if target_dir is not a git repo, but continue.
   if [[ ! -d "$target_dir/.git" ]]; then
     echo "Warning: $target_dir is not a git repository. It is recommended to run Prospect inside a git repo." >&2
