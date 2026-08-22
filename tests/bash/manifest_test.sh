@@ -176,11 +176,39 @@ test_classify_template_files() {
   done
 }
 
+# ── Tests: classify_file — excluded files ─────────────────────────────────────
+
+# test_classify_excluded_files
+#
+# The install scripts, the framework's own README, and the tracking files
+# themselves ship inside the release artifact but must never be written into
+# a target project: they would overwrite the project's README and pollute the
+# repository with installer plumbing.
+test_classify_excluded_files() {
+  _require_function classify_file
+
+  local paths=(
+    "install.sh"
+    "install.ps1"
+    "README.md"
+    ".prospect-manifest.json"
+    ".prospect-version"
+  )
+
+  for path in "${paths[@]}"; do
+    local result
+    result="$(classify_file "$path")" \
+      || _fail "classify_file '$path' exited non-zero"
+    [[ "$result" == "excluded" ]] \
+      || _fail "classify_file '$path' — expected 'excluded', got '$result'"
+  done
+}
+
 # ── Tests: write_manifest ──────────────────────────────────────────────────────
 
 # test_write_manifest_creates_json
 #
-# write_manifest <target_dir> <version> <file1> [<file2> ...]
+# write_manifest <target_dir> <version> [<rel_path> <sha256>]...
 # must create .prospect-manifest.json in target_dir containing:
 #   - "version" key matching the supplied version tag
 #   - "files" object with at least one entry whose key is the relative path
@@ -189,12 +217,12 @@ test_classify_template_files() {
 test_write_manifest_creates_json() {
   _require_function write_manifest
 
-  # Create a real file so compute_checksum has something to hash.
   local rel_path=".claude/agents/sdd-architect.md"
   mkdir -p "$TEST_DIR/.claude/agents"
   echo "# Architect Agent" > "$TEST_DIR/$rel_path"
 
-  write_manifest "$TEST_DIR" "v1.0.0" "$rel_path" \
+  write_manifest "$TEST_DIR" "v1.0.0" \
+    "$rel_path" "$(compute_checksum "$TEST_DIR/$rel_path")" \
     || _fail "write_manifest exited non-zero"
 
   local manifest="$TEST_DIR/.prospect-manifest.json"
@@ -228,7 +256,8 @@ test_write_manifest_omits_toolchains() {
   mkdir -p "$TEST_DIR/.claude/agents"
   echo "# Architect Agent" > "$TEST_DIR/$rel_path"
 
-  write_manifest "$TEST_DIR" "v1.0.0" "$rel_path" \
+  write_manifest "$TEST_DIR" "v1.0.0" \
+    "$rel_path" "$(compute_checksum "$TEST_DIR/$rel_path")" \
     || _fail "write_manifest exited non-zero"
 
   local content
@@ -238,26 +267,37 @@ test_write_manifest_omits_toolchains() {
     || _fail 'manifest must not contain a "toolchains" key'
 }
 
-# test_write_manifest_stores_correct_checksum
+# test_write_manifest_stores_supplied_checksum
 #
-# The checksum stored in the manifest for each file must match the sha256
-# of that file's actual content (FR-4.2).
-test_write_manifest_stores_correct_checksum() {
+# write_manifest records the checksum its caller supplies — the sha256 of the
+# content Prospect shipped. It must never derive a checksum by hashing the file
+# in the target directory: on a conflicted update that file holds the user's
+# edits, and recording those as the baseline makes the next update treat the
+# file as pristine and silently overwrite it.
+test_write_manifest_stores_supplied_checksum() {
   _require_function write_manifest
 
   local rel_path=".claude/agents/sdd-architect.md"
   mkdir -p "$TEST_DIR/.claude/agents"
-  printf "known content\n" > "$TEST_DIR/$rel_path"
+  printf "user-modified content\n" > "$TEST_DIR/$rel_path"
 
-  write_manifest "$TEST_DIR" "v1.0.0" "$rel_path" \
+  local shipped_checksum
+  shipped_checksum="$(printf 'shipped content\n' > "$TEST_DIR/.shipped" \
+    && compute_checksum "$TEST_DIR/.shipped")"
+  rm -f "$TEST_DIR/.shipped"
+
+  write_manifest "$TEST_DIR" "v1.0.0" "$rel_path" "$shipped_checksum" \
     || _fail "write_manifest exited non-zero"
 
-  local expected_checksum
-  expected_checksum="$(compute_checksum "$TEST_DIR/$rel_path")"
-
   local manifest="$TEST_DIR/.prospect-manifest.json"
-  assert_file_contains "$manifest" "$expected_checksum" \
-    || _fail "manifest must contain the sha256 checksum '$expected_checksum' for '$rel_path'"
+  assert_file_contains "$manifest" "$shipped_checksum" \
+    || _fail "manifest must record the supplied (shipped) checksum '$shipped_checksum'"
+
+  local on_disk_checksum
+  on_disk_checksum="$(compute_checksum "$TEST_DIR/$rel_path")"
+  if grep -q "$on_disk_checksum" "$manifest"; then
+    _fail "manifest must not record the checksum of the file on disk in the target"
+  fi
 }
 
 # ── Tests: read_manifest_version ──────────────────────────────────────────────

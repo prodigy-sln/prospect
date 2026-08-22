@@ -136,8 +136,24 @@ create_mock_artifact() {
   touch "$root/specs/active/.gitkeep"
   touch "$root/specs/archive/.gitkeep"
   echo "# README" > "$root/README.md"
+  echo "# install.sh" > "$root/install.sh"
+  echo "# install.ps1" > "$root/install.ps1"
+
+  bake_manifest "$root" "$version"
 
   echo "$root"
+}
+
+# bake_manifest <artifact_root> <version>
+# Regenerates the artifact's pre-baked .prospect-manifest.json. Tests that
+# mutate artifact content after create_mock_artifact must call this again,
+# exactly as the release build bakes the manifest after staging.
+bake_manifest() {
+  local root="${1:?artifact_root required}"
+  local version="${2:-v1.0.0}"
+  local repo_root
+  repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+  bash "$repo_root/scripts/build-manifest.sh" "$root" "$version"
 }
 
 # ── SHA-256 checksum (cross-platform) ──

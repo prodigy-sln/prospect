@@ -76,6 +76,8 @@ function New-MockArtifact([string]$DestDir, [string]$Version = "v1.0.0") {
         "product/mission.template.md" = "# Mission Template"
         "product/roadmap.template.md" = "# Roadmap Template"
         "README.md" = "# README"
+        "install.sh" = "# install.sh"
+        "install.ps1" = "# install.ps1"
     }
     foreach ($kv in $files.GetEnumerator()) {
         [System.IO.File]::WriteAllText((Join-Path $root $kv.Key), $kv.Value)
@@ -83,7 +85,24 @@ function New-MockArtifact([string]$DestDir, [string]$Version = "v1.0.0") {
     "" | Set-Content (Join-Path $root "specs/active/.gitkeep")
     "" | Set-Content (Join-Path $root "specs/archive/.gitkeep")
 
+    Set-MockManifest -ArtifactRoot $root -Version $Version
+
     return $root
+}
+
+# Bakes the artifact's .prospect-manifest.json, mirroring what the release
+# build does after staging. Tests that mutate artifact content afterwards must
+# call this again.
+function Set-MockManifest([string]$ArtifactRoot, [string]$Version = "v1.0.0") {
+    $entries = @()
+    Get-ChildItem -Path $ArtifactRoot -Recurse -File -Force | Sort-Object FullName | ForEach-Object {
+        $rel = $_.FullName.Substring($ArtifactRoot.Length).TrimStart('\', '/') -replace '\\', '/'
+        if ($_.Name -eq ".gitkeep") { return }
+        if ((Get-FileCategory -RelativePath $rel) -in @("excluded", "user-content")) { return }
+        $entries += "`"$rel`":`"$(Get-Sha256 -FilePath $_.FullName)`""
+    }
+    $json = "{`"version`":`"$Version`",`"files`":{$($entries -join ',')}}"
+    [System.IO.File]::WriteAllText((Join-Path $ArtifactRoot ".prospect-manifest.json"), $json)
 }
 
 function Invoke-Tests {

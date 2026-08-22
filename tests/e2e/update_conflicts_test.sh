@@ -129,6 +129,7 @@ test_e2e_update_modified_standards_creates_incoming() {
 
   # Mutate the v2 standards file so it differs from v1's content.
   printf '\n# Framework update marker for v2\n' >> "$source_v2/standards/global/code-quality.md"
+  bake_manifest "$source_v2" "v2.0.0"
 
   local output
   output="$(install_files "$source_v2" "$target_dir" "v2.0.0" 2>&1)" \
@@ -190,6 +191,7 @@ test_e2e_update_unmodified_files_overwritten() {
   if [[ -n "$agent_file" ]]; then
     rel_path="${agent_file#$source_v2/}"
     printf '\n# v2 update marker\n' >> "$agent_file"
+    bake_manifest "$source_v2" "v2.0.0"
 
     install_files "$source_v2" "$target_dir" "v2.0.0" \
       || _fail "update to v2.0.0 exited non-zero"
