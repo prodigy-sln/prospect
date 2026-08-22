@@ -172,6 +172,14 @@ OUT="$(resolve "$R" 2026-01-01-aa --explain)"
 echo "$OUT" | grep -qi "work-type: feature" || err "explain output missing work-type"
 [ -f "$R/specs/active/2026-01-01-aa/metrics.md" ] && err "explain must not stamp metrics"
 
+t "--auto appends the autonomy addendum to the composed prompt"
+R="$(make_repo)"
+make_spec "$R" 2026-01-01-aa feature medium 2026-01-02
+OUT="$(resolve "$R" 2026-01-01-aa --auto)"
+echo "$OUT" | grep -q "Unattended operation" || err "autonomy addendum missing under --auto"
+OUT2="$(resolve "$R" 2026-01-01-aa)"
+echo "$OUT2" | grep -q "Unattended operation" && err "autonomy addendum leaked without --auto"
+
 t "every matrix row references only fragment files that exist"
 MISSING=0
 while IFS=$'\t' read -r wtype bucket phase fragments; do

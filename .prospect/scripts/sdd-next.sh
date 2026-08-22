@@ -16,11 +16,13 @@ ACTIVE="$ROOT/specs/active"
 folder=""
 phase_override=""
 explain=0
+auto=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --phase) phase_override="${2:-}"; shift 2 ;;
     --explain) explain=1; shift ;;
+    --auto) auto=1; shift ;;
     -*) echo "unknown option: $1" >&2; exit 2 ;;
     *) folder="$1"; shift ;;
   esac
@@ -158,6 +160,11 @@ if [ "$phase" = "complete" ]; then
   review_mode="$(grep -oE 'review-mode: *(solo|team)' "$ROOT/CLAUDE.md" 2>/dev/null | head -1 | sed 's/.*: *//')"
   review_mode="${review_mode:-team}"
   fragments="$fragments,shared/complete-$review_mode.md"
+fi
+
+# Unattended operation appends the autonomy addendum.
+if [ "$auto" -eq 1 ]; then
+  fragments="$fragments,shared/autonomy.md"
 fi
 
 echo "PROSPECT NEXT"

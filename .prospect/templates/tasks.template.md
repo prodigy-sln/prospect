@@ -4,7 +4,9 @@
 
 One task = one coherent scenario group in one area. Split phases only at
 real dependency boundaries (e.g. schema before API). `[P]` = independent of
-other `[P]` tasks in the same phase.
+other `[P]` tasks in the same phase. Budget: 60 lines — one line per task
+plus its scenario line; status is appended as ` — done`, rationale lives in
+the spec, lessons go to docs/ at completion.
 
 ## Phase 1: [Name]
 

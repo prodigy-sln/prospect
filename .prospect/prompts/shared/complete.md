@@ -6,7 +6,8 @@ CLAUDE.md (`spec-disposal: delete | archive` + `retention`).
 
 **Publish** (no PR/merge yet):
 
-1. Run `scripts/sdd-gate.*` once — red = stop.
+1. Run `scripts/sdd-gate.*` and
+   `bash .prospect/scripts/sdd-artifact-lint.sh ${FOLDER}` once — red = stop.
 2. Spec frontmatter: `status: implemented`, `completed: [today]`.
 3. Consolidate into `docs/` via the `docs-consolidator` agent (generate
    `docs/INDEX.md` from `.prospect/templates/docs-index.template.md` first

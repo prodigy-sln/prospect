@@ -1,7 +1,8 @@
 ## Phase: Validate (feature · medium)
 
-1. **Gate**: run `scripts/sdd-gate.*`. Red gate = FAILED — report verbatim,
-   stop; no review runs on a red gate.
+1. **Gate**: run `scripts/sdd-gate.*`, then
+   `bash .prospect/scripts/sdd-artifact-lint.sh ${FOLDER}`. Either red =
+   FAILED — report verbatim, fix, re-run; no review on a red gate.
 2. **Review pack**: build the manifest once — files named in `tasks.md` plus
    feature files from `git diff --name-only $(git merge-base HEAD main)..HEAD`,
    excluding unrelated tool-touched files. Write manifest + latest test and
