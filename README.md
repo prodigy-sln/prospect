@@ -30,10 +30,15 @@ irm https://raw.githubusercontent.com/prodigy-sln/prospect/main/install.ps1 | ie
 Pin a version by passing a tag (`… | bash -s -- v3.0.0`). Re-run the same
 command to update: framework files (`.claude/`, `.prospect/`) update
 silently when unmodified, files you modified are saved alongside as
-`<filename>.prospect-incoming` for manual merge, and your content
-(`specs/active/`, `specs/archive/`, `specs/REGISTRY.md`, `docs/`,
-`product/mission.md`, `product/roadmap.md`) is never touched. Treat
-`.prospect/` as framework-owned: customize `standards/`, not the runtime.
+`<filename>.prospect-incoming`, and your content (`specs/active/`,
+`specs/archive/`, `specs/REGISTRY.md`, `docs/`, `product/mission.md`,
+`product/roadmap.md`) is never touched. Treat `.prospect/` as
+framework-owned: customize `standards/`, not the runtime.
+
+When there are incoming files the installer offers to merge them with Claude
+Code, and prints the command when it cannot ask. Installing into a repository
+that already carries a file Prospect ships (its own `CLAUDE.md`, say) offers
+the framework version as `.prospect-incoming` rather than overwriting it.
 
 ## The Pipeline
 

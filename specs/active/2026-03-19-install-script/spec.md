@@ -229,6 +229,40 @@ Plain bash test scripts with a lightweight helper library (`tests/helpers/setup.
 - :x: Docker-based installation
 - :x: Self-updating of the install script itself (script is always fetched fresh from GitHub)
 
+## Amendments — 2026-08-23 (v3)
+
+Field defect: an update recorded the checksum of the file left in the target
+repository, so a conflicted file was tracked as pristine and the following
+update overwrote the user's edits.
+
+- **FR-4.4**: The release build bakes `.prospect-manifest.json` into the
+  artifact, recording the sha256 of every installable file as shipped. The
+  installer copies those checksums into the target as the tracked baseline and
+  never derives one by hashing a file in the target. A release built before
+  this amendment carries no baked manifest; the installer then hashes the
+  artifact file.
+- **FR-4.5**: The manifest tracks exactly what the current release ships and
+  the installer manages. Paths a release drops, and files skipped as user
+  content, fall out of tracking.
+- **FR-3.6**: A file that already exists in the target and matches neither the
+  tracked baseline nor the shipped content is offered as `.prospect-incoming`.
+  This covers installing into a repository that already carries such a file, so
+  a fresh install can no longer overwrite pre-existing work.
+- **FR-3.7**: When the target already holds the shipped content, the file is
+  neither copied nor reported as a conflict.
+- **FR-3.8**: After a conflict summary, the installer offers to run Claude Code
+  on the incoming files when a terminal is attached and `claude` is on PATH,
+  and otherwise prints the command.
+- **FR-5.5**: `install.sh`, `install.ps1`, `README.md`, and the tracking files
+  ship in the artifact but are never written into a target project and never
+  tracked — the framework README would otherwise replace the project's own.
+  `.prospect-version` and `.prospect-manifest.json` are still written into the
+  target by the installer itself.
+
+Superseded: FR-3.5 (Copilot instructions) and the `toolchains` key in FR-4.2 —
+Claude Code is the only toolchain since v2; readers still tolerate the key in
+manifests written by older installers.
+
 ## Dependencies
 
 ### Blocking Dependencies
