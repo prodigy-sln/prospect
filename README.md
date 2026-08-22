@@ -36,9 +36,12 @@ silently when unmodified, files you modified are saved alongside as
 framework-owned: customize `standards/`, not the runtime.
 
 When there are incoming files the installer offers to merge them with Claude
-Code, and prints the command when it cannot ask. Installing into a repository
-that already carries a file Prospect ships (its own `CLAUDE.md`, say) offers
-the framework version as `.prospect-incoming` rather than overwriting it.
+Code, and prints the command when it cannot ask. The brief it hands over names
+the version range the update spans and points at the release notes for it, so
+the merge follows what the framework changed and why. Installing into a
+repository that already carries a file Prospect ships (its own `CLAUDE.md`,
+say) offers the framework version as `.prospect-incoming` rather than
+overwriting it.
 
 ## The Pipeline
 
