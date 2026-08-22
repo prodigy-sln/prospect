@@ -13,7 +13,7 @@ design notes, a technical writeup) into the living documentation.
 ## Prerequisites
 
 - `docs/INDEX.md` exists — if not, offer to generate it from
-  `specs/_templates/docs-index.template.md`, registering existing docs
+  `.prospect/templates/docs-index.template.md`, registering existing docs
 - A source path was provided; otherwise ask for one
 
 ## Run

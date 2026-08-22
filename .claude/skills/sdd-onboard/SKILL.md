@@ -29,12 +29,17 @@ detected toolchain, running in order: formatter check (no auto-fix), linter
 failure list, no prose. Run the gate once to prove it works; a red result
 on the existing codebase is a finding for the user, not a generation error.
 
-## Step 3: Docs Index
+## Step 3: Docs Index & Standing Architecture
 
 If `docs/INDEX.md` is missing, generate it from
-`specs/_templates/docs-index.template.md`: register existing documentation
-files with purpose per file, and write a routing guide from the project's
-topics. `docs/` holds as-built documentation only.
+`.prospect/templates/docs-index.template.md`: register existing
+documentation files with purpose per file, and write a routing guide from
+the project's topics. `docs/` holds as-built documentation only.
+
+Generate `docs/architecture.md` from the codebase: module map, dependency
+directions, existing boundaries and ports, volatility table, project
+constants (stack versions, gate flags, composition root). Specs declare
+only deltas against this document.
 
 ## Step 4: UI Design Standard (UI projects)
 
@@ -47,9 +52,13 @@ ask the user only what the code cannot show (brand intent, tone).
 
 ## Step 5: Project Instructions
 
-Update `CLAUDE.md` tech-stack section with the detected stack and the gate
-script path. Fill `standards/global/validation-calibration.md` skip rules
-with project specifics (generated dirs, vendored code).
+Update `CLAUDE.md`: tech-stack section with the detected stack and gate
+script path, and the Prospect settings block (`spec-disposal`,
+`review-mode: solo | team` — ask; recommend `solo` for a single
+maintainer). Fill `standards/global/validation-calibration.md` skip rules
+with project specifics (generated dirs, vendored code). The gate's final
+stage calls `bash .prospect/scripts/sdd-artifact-lint.sh` on the active
+spec folder when one exists.
 
 ## Output
 
