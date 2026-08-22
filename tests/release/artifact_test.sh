@@ -80,8 +80,8 @@ test_artifact_contains_shared_files() {
 
   assert_dir_exists "$root/standards" "standards/ must be in artifact" \
     || _fail "standards/ missing from artifact"
-  assert_dir_exists "$root/specs/_templates" "specs/_templates/ must be in artifact" \
-    || _fail "specs/_templates/ missing from artifact"
+  assert_dir_exists "$root/.prospect/templates" ".prospect/templates/ must be in artifact" \
+    || _fail ".prospect/templates/ missing from artifact"
   assert_file_exists "$root/specs/REGISTRY.md" "specs/REGISTRY.md must be in artifact" \
     || _fail "specs/REGISTRY.md missing from artifact"
   assert_file_exists "$root/CLAUDE.md" "CLAUDE.md must be in artifact" \

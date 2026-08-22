@@ -129,8 +129,8 @@ test_fresh_install_copies_all_files() {
   assert_file_exists "$target_dir/CLAUDE.md" \
     || _fail "CLAUDE.md must be installed"
 
-  assert_file_exists "$target_dir/specs/_templates/spec.template.md" \
-    || _fail "specs/_templates/spec.template.md must be installed"
+  assert_file_exists "$target_dir/.prospect/templates/spec.template.md" \
+    || _fail ".prospect/templates/spec.template.md must be installed"
 
   assert_file_exists "$target_dir/specs/REGISTRY.md" \
     || _fail "specs/REGISTRY.md must be seeded on fresh install"

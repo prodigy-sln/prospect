@@ -115,8 +115,8 @@ test_e2e_fresh_install_all_files_present() {
     || _fail "E2E: standards/global/git-workflow.md not present"
 
   # ── Spec templates ──
-  assert_dir_exists "$target_dir/specs/_templates" \
-    || _fail "E2E: specs/_templates/ not present"
+  assert_dir_exists "$target_dir/.prospect/templates" \
+    || _fail "E2E: .prospect/templates/ not present"
 
   # ── Product templates ──
   assert_file_exists "$target_dir/product/mission.template.md" \

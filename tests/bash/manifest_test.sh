@@ -65,7 +65,7 @@ _require_function() {
 # test_classify_framework_files
 #
 # Paths under .claude/agents/*, .claude/skills/*, .claude/workflows/*, and
-# specs/_templates/* must all return "framework" — these are safe to
+# .prospect/* must all return "framework" — these are safe to
 # overwrite on update (FR-5.1).
 test_classify_framework_files() {
   _require_function classify_file
@@ -74,10 +74,11 @@ test_classify_framework_files() {
     ".claude/agents/sdd-architect.md"
     ".claude/agents/sdd-reviewer.md"
     ".claude/skills/sdd-start/SKILL.md"
-    ".claude/skills/sdd-tasks/SKILL.md"
+    ".claude/skills/sdd-next/SKILL.md"
     ".claude/workflows/sdd-validate.js"
-    "specs/_templates/spec.template.md"
-    "specs/_templates/tasks.template.md"
+    ".prospect/templates/spec.template.md"
+    ".prospect/prompts/matrix.tsv"
+    ".prospect/scripts/sdd-next.sh"
   )
 
   for path in "${paths[@]}"; do

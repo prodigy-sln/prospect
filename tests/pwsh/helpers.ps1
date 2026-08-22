@@ -57,7 +57,7 @@ function New-MockArtifact([string]$DestDir, [string]$Version = "v1.0.0") {
     $root = Join-Path $DestDir "prospect-$Version"
     $dirs = @(
         ".claude/agents", ".claude/skills/sdd-start", ".claude/workflows",
-        "standards/global", "specs/_templates", "specs/active", "specs/archive",
+        "standards/global", ".prospect/templates", ".prospect/prompts/shared", ".prospect/scripts", "specs/active", "specs/archive",
         "product"
     )
     foreach ($d in $dirs) { New-Item -ItemType Directory -Path (Join-Path $root $d) -Force | Out-Null }
@@ -70,8 +70,8 @@ function New-MockArtifact([string]$DestDir, [string]$Version = "v1.0.0") {
         "standards/global/testing.md" = "# Testing"
         "standards/global/git-workflow.md" = "# Git Workflow"
         "CLAUDE.md" = "# CLAUDE.md template"
-        "specs/_templates/spec.template.md" = "# Spec Template"
-        "specs/_templates/tasks.template.md" = "# Tasks Template"
+        ".prospect/templates/spec.template.md" = "# Spec Template"
+        ".prospect/templates/tasks.template.md" = "# Tasks Template"
         "specs/REGISTRY.md" = "# Spec Registry"
         "product/mission.template.md" = "# Mission Template"
         "product/roadmap.template.md" = "# Roadmap Template"
