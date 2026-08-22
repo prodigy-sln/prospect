@@ -28,6 +28,15 @@ jobs:
         # phase resolution, matrix completeness, prompt composition
         run: bash tests/framework/resolver_test.sh
 
+      - name: Installer tests
+        # categorisation, manifest baseline, conflict handling, artifact layout
+        run: |
+          bash tests/bash/manifest_test.sh
+          bash tests/bash/install_test.sh
+          bash tests/release/artifact_test.sh
+          bash tests/e2e/fresh_install_test.sh
+          bash tests/e2e/update_conflicts_test.sh
+
       - name: Build release artifact
         # FR-8.2: produce .tar.gz and .zip containing all distributable files
         run: |
