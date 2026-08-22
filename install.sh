@@ -165,7 +165,7 @@ classify_file() {
     product/mission.template.md|product/roadmap.template.md)
       echo "template"
       ;;
-    .claude/agents/*|.claude/skills/*|.claude/workflows/*|specs/_templates/*)
+    .claude/agents/*|.claude/skills/*|.claude/workflows/*|.prospect/*)
       echo "framework"
       ;;
     standards/global/*.md|CLAUDE.md)

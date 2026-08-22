@@ -44,16 +44,15 @@ if [[ -d "$REPO_ROOT/.claude" ]]; then
   cp -r "$REPO_ROOT/.claude" "$STAGE/.claude"
 fi
 
+# .prospect/ — framework runtime: resolver, prompts, templates, policy
+if [[ -d "$REPO_ROOT/.prospect" ]]; then
+  cp -r "$REPO_ROOT/.prospect" "$STAGE/.prospect"
+fi
+
 # standards/global/
 if [[ -d "$REPO_ROOT/standards/global" ]]; then
   mkdir -p "$STAGE/standards"
   cp -r "$REPO_ROOT/standards/global" "$STAGE/standards/global"
-fi
-
-# specs/_templates/ only — no active or archived content
-if [[ -d "$REPO_ROOT/specs/_templates" ]]; then
-  mkdir -p "$STAGE/specs"
-  cp -r "$REPO_ROOT/specs/_templates" "$STAGE/specs/_templates"
 fi
 
 # specs/REGISTRY.md — seeded on install when absent, never overwritten

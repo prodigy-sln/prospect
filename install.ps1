@@ -192,7 +192,7 @@ function Get-FileCategory {
 
     # Framework-managed files.
     if ($p -match '^\.claude/(agents|skills|workflows)/' -or
-        $p -match '^specs/_templates/') {
+        $p -match '^\.prospect/') {
         return "framework"
     }
 
