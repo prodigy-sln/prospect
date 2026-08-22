@@ -173,12 +173,21 @@ function Invoke-DownloadRelease {
 # ── File categorization ────────────────────────────────────────────────────────
 
 # Get-FileCategory <relativePath>
-# Returns: "framework" | "customizable" | "user-content" | "template" | "install-once"
+# Returns: "framework" | "customizable" | "user-content" | "template" |
+#          "install-once" | "excluded"
 function Get-FileCategory {
     param([string]$RelativePath)
 
     # Normalise to forward slashes for consistent matching.
     $p = $RelativePath -replace '\\', '/'
+
+    # Installer plumbing and the framework's own README. They belong to the
+    # release artifact, not to the target repository — copying README.md would
+    # overwrite the project's own.
+    if ($p -in @("install.sh", "install.ps1", "README.md",
+                 ".prospect-manifest.json", ".prospect-version")) {
+        return "excluded"
+    }
 
     # Install-once: seeded when absent, never overwritten (spec registry).
     if ($p -eq "specs/REGISTRY.md") {
@@ -226,24 +235,24 @@ function Get-Sha256 {
 
 # ── Manifest read/write ────────────────────────────────────────────────────────
 
-# Write-Manifest <targetDir> <version> <installedFiles[]>
+# Write-Manifest <targetDir> <version> <files>
 # Creates .prospect-manifest.json in targetDir (FR-4.2).
+#
+# $Files maps relative path -> sha256 of the content Prospect shipped. The
+# function deliberately cannot hash files in targetDir: on a conflicted update
+# that file holds the user's edits, and recording those as the baseline would
+# make the next update mistake the file for pristine and overwrite it.
 function Write-Manifest {
     param(
         [string]$TargetDir,
         [string]$ManifestVersion,
-        [string[]]$InstalledFiles
+        [System.Collections.IDictionary]$Files
     )
 
-    # Build files JSON object with per-file checksums.
     $fileEntries = @()
-    foreach ($rel in $InstalledFiles) {
-        $fullPath = Join-Path $TargetDir $rel
-        if (Test-Path -LiteralPath $fullPath) {
-            $checksum = Get-Sha256 -FilePath $fullPath
-            $escaped = $rel -replace '\\', '/'
-            $fileEntries += "`"$escaped`":`"$checksum`""
-        }
+    foreach ($rel in $Files.Keys) {
+        $escaped = $rel -replace '\\', '/'
+        $fileEntries += "`"$escaped`":`"$($Files[$rel])`""
     }
     $filesJson = $fileEntries -join ','
 
@@ -252,6 +261,23 @@ function Write-Manifest {
 
     # Write with UTF-8 without BOM for cross-platform compatibility.
     [System.IO.File]::WriteAllText($manifestPath, $json, [System.Text.UTF8Encoding]::new($false))
+}
+
+# Get-ShippedChecksum <sourceDir> <relativePath>
+# The sha256 of the file as shipped, read from the artifact's baked manifest.
+# Falls back to hashing the artifact file for releases built before the
+# manifest was baked at build time.
+function Get-ShippedChecksum {
+    param(
+        [string]$SourceDir,
+        [string]$RelativePath
+    )
+
+    $checksum = Read-ManifestChecksum -TargetDir $SourceDir -RelativePath $RelativePath
+    if ([string]::IsNullOrEmpty($checksum)) {
+        $checksum = Get-Sha256 -FilePath (Join-Path $SourceDir $RelativePath)
+    }
+    return $checksum
 }
 
 # Read-ManifestVersion <targetDir>
@@ -334,13 +360,14 @@ function Install-Files {
                 $category = Get-FileCategory -RelativePath $rel
                 if ($category -eq "user-content") { return }
                 if ($category -eq "install-once") { return }
+                if ($category -eq "excluded") { return }
 
                 $targetFile = Join-Path $TargetDir $rel
                 if (-not (Test-Path -LiteralPath $targetFile)) {
                     $anyDiff = $true
                     return
                 }
-                $srcHash    = Get-Sha256 -FilePath $_.FullName
+                $srcHash    = Get-ShippedChecksum -SourceDir $SourceDir -RelativePath $rel
                 $targetHash = Get-Sha256 -FilePath $targetFile
                 if ($srcHash -ne $targetHash) {
                     $anyDiff = $true
@@ -357,6 +384,8 @@ function Install-Files {
     $installedFiles = [System.Collections.Generic.List[string]]::new()
     $skippedFiles   = [System.Collections.Generic.List[string]]::new()
     $conflictFiles  = [System.Collections.Generic.List[string]]::new()
+    # Relative path -> checksum of the shipped content, for the new manifest.
+    $manifestFiles  = [ordered]@{}
 
     # FR-5.4: Ensure required directories exist.
     @("specs/active", "specs/archive", "product") | ForEach-Object {
@@ -378,6 +407,9 @@ function Install-Files {
         $category   = Get-FileCategory -RelativePath $rel
         $targetFile = Join-Path $TargetDir $rel
 
+        # Installer plumbing never enters the target repository.
+        if ($category -eq "excluded") { return }
+
         # FR-5.3: user-content — never touch if file already exists.
         if ($category -eq "user-content") {
             if (Test-Path -LiteralPath $targetFile) {
@@ -398,6 +430,7 @@ function Install-Files {
             }
             Copy-Item -LiteralPath $srcFile.FullName -Destination $targetFile -Force
             $installedFiles.Add($rel)
+            $manifestFiles[$rel] = Get-ShippedChecksum -SourceDir $SourceDir -RelativePath $rel
             return
         }
 
@@ -407,71 +440,47 @@ function Install-Files {
             New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
         }
 
-        if (-not $manifestExists) {
-            # FR-3.1: Fresh install — copy everything.
+        # The checksum of this file as shipped becomes the tracked baseline
+        # whatever the outcome below — it describes what Prospect offered,
+        # never what the target repository happens to hold.
+        $shippedSum = Get-ShippedChecksum -SourceDir $SourceDir -RelativePath $rel
+        $manifestFiles[$rel] = $shippedSum
+
+        if (-not (Test-Path -LiteralPath $targetFile)) {
+            # FR-3.1: not present yet — copy it.
+            Copy-Item -LiteralPath $srcFile.FullName -Destination $targetFile -Force
+            $installedFiles.Add($rel)
+            return
+        }
+
+        $currentSum  = Get-Sha256 -FilePath $targetFile
+        $baselineSum = Read-ManifestChecksum -TargetDir $TargetDir -RelativePath $rel
+
+        if ($currentSum -eq $shippedSum) {
+            # Already the shipped content — nothing to do, and no conflict even
+            # if the user arrived there by hand.
+            $installedFiles.Add($rel)
+        }
+        elseif ((-not [string]::IsNullOrEmpty($baselineSum)) -and $currentSum -eq $baselineSum) {
+            # FR-3.2: tracked and unmodified — overwrite silently.
             Copy-Item -LiteralPath $srcFile.FullName -Destination $targetFile -Force
             $installedFiles.Add($rel)
         }
         else {
-            # FR-3.2 / FR-3.3: Update — checksum-based conflict detection.
-            $manifestSum = Read-ManifestChecksum -TargetDir $TargetDir -RelativePath $rel
-
-            if (-not (Test-Path -LiteralPath $targetFile)) {
-                # New file in this version — just copy.
-                Copy-Item -LiteralPath $srcFile.FullName -Destination $targetFile -Force
-                $installedFiles.Add($rel)
-            }
-            elseif ([string]::IsNullOrEmpty($manifestSum)) {
-                # Not previously tracked — copy.
-                Copy-Item -LiteralPath $srcFile.FullName -Destination $targetFile -Force
-                $installedFiles.Add($rel)
-            }
-            else {
-                $currentSum = Get-Sha256 -FilePath $targetFile
-
-                if ($currentSum -eq $manifestSum) {
-                    # FR-3.2: Unmodified — overwrite silently.
-                    Copy-Item -LiteralPath $srcFile.FullName -Destination $targetFile -Force
-                    $installedFiles.Add($rel)
-                }
-                else {
-                    # FR-3.3: User-modified — write as .prospect-incoming.
-                    Copy-Item -LiteralPath $srcFile.FullName -Destination "$targetFile.prospect-incoming" -Force
-                    $conflictFiles.Add($rel)
-                }
-            }
-        }
-    }
-
-    # Build complete list of manifest files.
-    $manifestFiles = [System.Collections.Generic.List[string]]::new()
-    $installedFiles | ForEach-Object { $manifestFiles.Add($_) }
-
-    if ($manifestExists) {
-        $conflictFiles | ForEach-Object { $manifestFiles.Add($_) }
-
-        # Re-include previously tracked files not touched in this run.
-        $prevContent = Get-Content -LiteralPath $manifestPath -Raw -ErrorAction SilentlyContinue
-        if ($prevContent) {
-            $regex = [System.Text.RegularExpressions.Regex]::new('"([^"]+)":"[^"]+"')
-            $matches = $regex.Matches($prevContent)
-            foreach ($m in $matches) {
-                $prevFile = $m.Groups[1].Value
-                # Skip JSON keys that are metadata, not file paths.
-                # "toolchains" is tolerated for manifests written by older versions.
-                if ($prevFile -eq "version" -or $prevFile -eq "toolchains") { continue }
-                if ($manifestFiles.Contains($prevFile)) { continue }
-                $fullPath = Join-Path $TargetDir $prevFile
-                if (Test-Path -LiteralPath $fullPath) {
-                    $manifestFiles.Add($prevFile)
-                }
-            }
+            # FR-3.3: user-modified, or untracked content that predates the
+            # install (installing into a populated repository) — offer the new
+            # version alongside rather than overwrite.
+            Copy-Item -LiteralPath $srcFile.FullName -Destination "$targetFile.prospect-incoming" -Force
+            $conflictFiles.Add($rel)
         }
     }
 
     # Write manifest and version file (FR-4.1, FR-4.2).
+    # Entries cover exactly what this release ships and the installer manages;
+    # paths dropped by the release, and files skipped as user content, fall out
+    # of tracking.
     Write-Manifest -TargetDir $TargetDir -ManifestVersion $InstallVersion `
-        -InstalledFiles $manifestFiles.ToArray()
+        -Files $manifestFiles
     Write-VersionFile -TargetDir $TargetDir -InstallVersion $InstallVersion
 
     # FR-3.4: Print summary.
@@ -491,7 +500,51 @@ function Install-Files {
         Write-Host "  Review and merge the .prospect-incoming files to complete the update."
     }
 
+    $script:ProspectConflictCount = $conflictFiles.Count
     return $true
+}
+
+# ── Conflict merge ─────────────────────────────────────────────────────────────
+
+# The merge brief handed to Claude Code. Kept free of quotes so it survives
+# being printed as a copy-pasteable command.
+$PROSPECT_MERGE_PROMPT = "Integrate the .prospect-incoming files from the prospect sdd framework update into the current solution. Make sure you understand the changes made and also understand the intent of the current project specific changes. Incorporate the project specific changes into the updated files. The goal is to have the update with the project specifics included. The update takes precedence over the local file structure. If something changed materially during the update (incoming files), make sure to incorporate that change."
+
+# Test-Interactive
+# True when there is a console to ask on. Tests override this.
+function Test-Interactive {
+    if ($env:PROSPECT_NONINTERACTIVE) { return $false }
+    return ([Environment]::UserInteractive -and -not [Console]::IsInputRedirected)
+}
+
+# Request-YesNo <question>
+# Asks on the console; true only on an explicit yes. Tests override this.
+function Request-YesNo {
+    param([string]$Question)
+    $answer = Read-Host -Prompt $Question
+    return ($answer -match '^(y|yes)$')
+}
+
+# Invoke-ProposeMerge <targetDir>
+# Offers to hand the conflicts to Claude Code, and prints the command whenever
+# it does not run it — declined, unavailable, or no console attached.
+function Invoke-ProposeMerge {
+    param([string]$TargetDir)
+
+    $claude = Get-Command claude -ErrorAction SilentlyContinue
+    if ($claude -and (Test-Interactive)) {
+        if (Request-YesNo -Question "  Run Claude Code now to merge the incoming changes? [y/N]") {
+            Push-Location $TargetDir
+            try { & $claude.Source $PROSPECT_MERGE_PROMPT }
+            finally { Pop-Location }
+            return
+        }
+    }
+
+    Write-Host ""
+    Write-Host "  To merge them with Claude Code, run:"
+    Write-Host ""
+    Write-Host "    claude `"$PROSPECT_MERGE_PROMPT`""
 }
 
 # ── Main ───────────────────────────────────────────────────────────────────────
@@ -534,10 +587,15 @@ function Main {
             $sourceDir = $tmpDir
         }
 
+        $script:ProspectConflictCount = 0
         $result = Install-Files -SourceDir $sourceDir -TargetDir $effectiveTargetDir `
             -InstallVersion $resolvedVersion
         if (-not $result) {
             exit 1
+        }
+
+        if ($script:ProspectConflictCount -gt 0) {
+            Invoke-ProposeMerge -TargetDir $effectiveTargetDir
         }
     }
     finally {

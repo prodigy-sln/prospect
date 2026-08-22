@@ -83,6 +83,12 @@ for f in CLAUDE.md README.md install.sh install.ps1; do
   fi
 done
 
+# ── Bake the manifest ─────────────────────────────────────────────────────────
+# Checksums are taken here, from the files as shipped, so the installer never
+# derives a baseline from a file in the target repository.
+
+bash "$SCRIPT_DIR/build-manifest.sh" "$STAGE" "$VERSION"
+
 # ── Produce archives ──────────────────────────────────────────────────────────
 
 OUT_DIR="$(pwd)"
