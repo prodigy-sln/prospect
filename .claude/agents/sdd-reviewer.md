@@ -57,5 +57,6 @@ per the calibration file; discard findings that lack either.
 [out-of-scope files and unspecced features — or "clean"]
 
 ### Verdict
-[PASS — no Blocker/Major/Minor | FAIL — N findings]
+[counts: Blocker N · Major N · Minor N · Info N — the calling phase
+computes PASS/FAIL from these]
 ```

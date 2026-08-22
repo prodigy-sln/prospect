@@ -96,7 +96,25 @@ composition root wires them. No circular dependencies.
 - Two-way doors get one line. One-way doors get analysis. Never spend
   the same effort on both.
 
-## 6. Unknowns block, assumptions are declared
+## 6. Standing architecture, per-spec deltas
+
+The project's architecture lives in one standing document
+(`docs/architecture.md`, routed by `docs/INDEX.md`): module map, dependency
+directions, ports registry, volatility table, project constants (stack,
+gate flags, composition root). Specs declare only their **delta** — new
+boundaries, dependencies, data models, public contracts. Design work
+consumes the standing doc and never re-derives it; completed deltas merge
+back at consolidation. An empty delta means no architecture phase runs.
+
+## 7. Gate amendments are a project decision
+
+`scripts/sdd-gate.*` changes only by an explicit project-level decision
+with the user, inside a stated runtime budget — never as the deliverable of
+a single spec. An invariant a spec introduces becomes a test; a check that
+pays rent on every future change may be proposed for the gate, and the user
+rules on it.
+
+## 8. Unknowns block, assumptions are declared
 
 If a driver material to a binding decision is unknown (data residency
 requirements, expected load, cost ceiling, retention rules), the design

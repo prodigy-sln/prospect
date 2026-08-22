@@ -34,6 +34,10 @@ Work through every functional requirement:
    Out of Scope section.
 8. **UI states**: if the feature has UI surface, empty, loading, and error
    states each need a scenario.
+9. **Over-specification**: adjacent scenarios that exercise the same
+   behavior path and differ only in data are merge candidates — report each
+   group with a proposed single parameterized scenario. Report the total
+   scenario count; past 40, propose a prioritized cut/merge list.
 
 ## Report (return exactly this structure)
 

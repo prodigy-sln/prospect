@@ -1,7 +1,11 @@
 # Scenario Guidelines
 
-Acceptance scenarios are the test contract: each scenario becomes exactly
-one test. Write scenarios so a test can be derived from them mechanically.
+Acceptance scenarios are the test contract: each is the floor of at least
+one test — more when distinct code paths or boundaries need their own
+falsifier. Write scenarios so tests derive from them mechanically.
+Scenarios are a budget, not a score: merge variants exercising the same
+behavior path into one parameterized scenario; past ~40 the user confirms
+every addition.
 
 Tests carry no spec references: test names describe behavior ("rejects an
 expired token with 410"), and the scenario↔test mapping lives in the spec
