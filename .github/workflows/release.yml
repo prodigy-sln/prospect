@@ -24,6 +24,10 @@ jobs:
         # word budgets, forbidden references, frontmatter, path existence
         run: bash tests/framework/lint.sh
 
+      - name: Resolver tests
+        # phase resolution, matrix completeness, prompt composition
+        run: bash tests/framework/resolver_test.sh
+
       - name: Build release artifact
         # FR-8.2: produce .tar.gz and .zip containing all distributable files
         run: |
