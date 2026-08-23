@@ -82,7 +82,8 @@ has_file() { [ -f "$DIR/$1" ]; }
 
 has_unchecked_tasks() { grep -q '^- \[ \]' "$DIR/tasks.md" 2>/dev/null; }
 
-validation_pass() { grep -qi 'verdict:.*PASS\|^\*\*PASS' "$DIR/validation-report.md" 2>/dev/null; }
+# PASS must be the verdict's own value, not merely a word on the line.
+validation_pass() { grep -qiE 'verdict:[^A-Za-z]*(\*\*)?PASS|^\*\*PASS' "$DIR/validation-report.md" 2>/dev/null; }
 
 has_section_content() { # has_section_content <file> <heading> — section exists, non-empty, not "none"
   awk -v h="$2" '
