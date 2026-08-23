@@ -12,7 +12,8 @@ DIR="${1:-}"
 FAIL=0
 err() { echo "ARTIFACT LINT: $*"; FAIL=1; }
 
-lines() { wc -l <"$1" | tr -d ' '; }
+# awk counts a final line that carries no newline; wc -l would not.
+lines() { awk 'END { print NR }' "$1"; }
 
 # tasks.md: 60 lines
 if [ -f "$DIR/tasks.md" ]; then
@@ -24,7 +25,8 @@ fi
 # per mapped test, measured as total lines vs mapping lines)
 if [ -f "$DIR/test-map.md" ]; then
   total=$(lines "$DIR/test-map.md")
-  maps=$(grep -c '→\|->' "$DIR/test-map.md" 2>/dev/null || echo 0)
+  # grep -c already prints 0 on no match; the || only restores its exit code.
+  maps=$(grep -cE '→|->' "$DIR/test-map.md") || maps=0
   budget=$((maps * 3 + 10))
   [ "$total" -le "$budget" ] || err "test-map.md: $total lines for $maps mappings (budget $budget) — one line per mapping"
 fi
@@ -41,13 +43,31 @@ if [ -f "$DIR/requirements.md" ]; then
   [ "$n" -le 150 ] || err "requirements.md: $n lines (budget 150)"
 fi
 
-# REGISTRY.md: every entry line ≤ 50 words
-REG="$(dirname "$(dirname "$DIR")")/REGISTRY.md"
-if [ -f "$REG" ]; then
+# find_registry <spec-folder> — the repo's specs/REGISTRY.md, located by
+# walking up. Archived folders sit one level deeper than active ones, and
+# the caller's working directory is not guaranteed to be the repo root.
+find_registry() {
+  local dir parent
+  dir="$(cd "$1" && pwd)" || return 1
+  while [ -n "$dir" ]; do
+    [ -f "$dir/specs/REGISTRY.md" ] && { printf '%s\n' "$dir/specs/REGISTRY.md"; return 0; }
+    parent="$(dirname "$dir")"
+    [ "$parent" = "$dir" ] && return 1
+    dir="$parent"
+  done
+  return 1
+}
+
+# REGISTRY.md: every entry line ≤ 50 words. Entries are the lines carrying
+# the '·' separator, whatever bullet they start with; the file's heading and
+# its format legend are not entries.
+REG="$(find_registry "$DIR")" || REG=""
+if [ -n "$REG" ]; then
   while IFS= read -r line; do
-    w=$(echo "$line" | wc -w | tr -d ' ')
+    case "$line" in '#'*|Format:*) continue ;; esac
+    w=$(wc -w <<<"$line" | tr -d ' ')
     [ "$w" -le 50 ] || err "REGISTRY.md entry exceeds 50 words ($w): ${line:0:60}…"
-  done < <(grep -E '^[-\`]' "$REG" | grep '·')
+  done < <(grep -F '·' "$REG")
 fi
 
 if [ "$FAIL" -eq 0 ]; then
