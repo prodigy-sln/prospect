@@ -124,6 +124,26 @@ printf 'Verdict: PASS\n' > "$R/specs/active/2026-01-01-aa/validation-report.md"
 OUT="$(resolve "$R")"
 echo "$OUT" | grep -q "^phase: complete" || err "expected complete, got: $(echo "$OUT" | grep '^phase:')"
 
+t "feature: a bold verdict line resolves to complete"
+R="$(make_repo)"
+make_spec "$R" 2026-01-01-aa feature medium 2026-01-02
+printf -- '- [x] T01 done
+' > "$R/specs/active/2026-01-01-aa/tasks.md"
+printf '**Verdict:** **PASS**
+' > "$R/specs/active/2026-01-01-aa/validation-report.md"
+OUT="$(resolve "$R")"
+echo "$OUT" | grep -q "^phase: complete" || err "expected complete, got: $(echo "$OUT" | grep '^phase:')"
+
+t "feature: a FAILED verdict that mentions PASS stays in validate"
+R="$(make_repo)"
+make_spec "$R" 2026-01-01-aa feature medium 2026-01-02
+printf -- '- [x] T01 done
+' > "$R/specs/active/2026-01-01-aa/tasks.md"
+printf 'Verdict: FAILED - two Blockers; re-run to reach PASS
+'   > "$R/specs/active/2026-01-01-aa/validation-report.md"
+OUT="$(resolve "$R")"
+echo "$OUT" | grep -q "^phase: validate" || err "a FAILED report resolved to: $(echo "$OUT" | grep '^phase:')"
+
 # ── other work types ─────────────────────────────────────────────────────
 
 t "fix: existing spec resolves straight to implement (no tasks phase)"
@@ -181,15 +201,13 @@ OUT2="$(resolve "$R" 2026-01-01-aa)"
 echo "$OUT2" | grep -q "Unattended operation" && err "autonomy addendum leaked without --auto"
 
 t "every matrix row references only fragment files that exist"
-MISSING=0
 while IFS=$'\t' read -r wtype bucket phase fragments; do
   case "$wtype" in \#*|'') continue ;; esac
   IFS=',' read -ra FR <<< "$fragments"
   for frag in "${FR[@]}"; do
-    [ -f "$REPO_ROOT/.prospect/prompts/$frag" ] || { err "matrix references missing fragment: $frag"; MISSING=1; }
+    [ -f "$REPO_ROOT/.prospect/prompts/$frag" ] || err "matrix references missing fragment: $frag"
   done
 done < "$REPO_ROOT/.prospect/prompts/matrix.tsv"
-[ $MISSING -eq 0 ] || true
 
 echo ""
 if [ $FAIL -eq 0 ]; then

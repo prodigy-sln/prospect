@@ -24,9 +24,12 @@ jobs:
         # word budgets, forbidden references, frontmatter, path existence
         run: bash tests/framework/lint.sh
 
-      - name: Resolver tests
-        # phase resolution, matrix completeness, prompt composition
-        run: bash tests/framework/resolver_test.sh
+      - name: Resolver and artifact lint tests
+        # phase resolution, matrix completeness, prompt composition,
+        # artifact budget enforcement
+        run: |
+          bash tests/framework/resolver_test.sh
+          bash tests/framework/artifact_lint_test.sh
 
       - name: Installer tests
         # categorisation, manifest baseline, conflict handling, artifact layout
