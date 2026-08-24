@@ -152,6 +152,32 @@ make_spec "$R" 2026-01-01-aa fix medium 2026-01-02
 OUT="$(resolve "$R")"
 echo "$OUT" | grep -q "^phase: implement" || err "expected implement, got: $(echo "$OUT" | grep '^phase:')"
 
+t "fix: at medium+ a written test-map hands off to validate"
+R="$(make_repo)"
+make_spec "$R" 2026-01-01-aa fix high 2026-01-02
+printf 'FR-1-S1 -> reproduces the defect
+' > "$R/specs/active/2026-01-01-aa/test-map.md"
+OUT="$(resolve "$R")"
+echo "$OUT" | grep -q "^phase: validate" || err "fix stalled at: $(echo "$OUT" | grep '^phase:')"
+
+t "fix: a failing validation report re-runs validate rather than implement"
+R="$(make_repo)"
+make_spec "$R" 2026-01-01-aa fix high 2026-01-02
+printf 'FR-1-S1 -> reproduces the defect
+' > "$R/specs/active/2026-01-01-aa/test-map.md"
+printf 'Verdict: FAILED - one Blocker
+' > "$R/specs/active/2026-01-01-aa/validation-report.md"
+OUT="$(resolve "$R")"
+echo "$OUT" | grep -q "^phase: validate" || err "expected validate, got: $(echo "$OUT" | grep '^phase:')"
+
+t "fix: at rigor low implement still self-marks and completes"
+R="$(make_repo)"
+make_spec "$R" 2026-01-01-aa fix low 2026-01-02
+printf 'FR-1-S1 -> reproduces the defect
+' > "$R/specs/active/2026-01-01-aa/test-map.md"
+OUT="$(resolve "$R")"
+echo "$OUT" | grep -q "^phase: implement" || err "low should stay on implement, got: $(echo "$OUT" | grep '^phase:')"
+
 t "docs: resolves to edit"
 R="$(make_repo)"
 make_spec "$R" 2026-01-01-aa docs low 2026-01-02
