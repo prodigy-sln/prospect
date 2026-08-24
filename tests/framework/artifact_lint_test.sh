@@ -86,7 +86,7 @@ LONG="$(repeat_lines 1 "$(printf 'word %.0s' $(seq 60))")"
 R="$(make_repo "2026-01-01-t · 2026-01-02 · fix/medium · $LONG · PR #1")"
 OUT="$(lint "$R")"; RC=$?
 [ $RC -eq 1 ] || err "expected exit 1 for a >50-word entry, got $RC: $OUT"
-echo "$OUT" | grep -q "REGISTRY.md entry exceeds 50 words" || err "missing registry failure: $OUT"
+echo "$OUT" | grep -q "REGISTRY.md entry for 2026-01-01-t exceeds 50 words" || err "missing registry failure: $OUT"
 
 t "the registry format legend is not treated as an entry"
 R="$(make_repo "- 2026-01-01-t · 2026-01-02 · fix/medium · short summary · PR #1")"
@@ -98,6 +98,20 @@ R="$(make_repo "2026-01-01-t · 2026-01-02 · fix/medium · $(repeat_lines 1 "$(
 mkdir -p "$R/specs/archive/2026/2026-01-01-t"
 OUT="$( (cd "$R" && bash "$LINT" specs/archive/2026/2026-01-01-t 2>&1) )"; RC=$?
 [ $RC -eq 1 ] || err "registry check skipped for an archived folder (exit $RC): $OUT"
+
+t "an over-long entry for another spec does not fail this spec's lint"
+LONG="$(repeat_lines 1 "$(printf 'word %.0s' $(seq 60))")"
+R="$(make_repo "- 2025-09-09-legacy · 2025-09-10 · feature/high · $LONG · PR #1")"
+OUT="$(lint "$R")"; RC=$?
+[ $RC -eq 0 ] || err "history written before this spec must not block it (exit $RC): $OUT"
+
+t "the entry for this spec is still held to the word cap"
+LONG="$(repeat_lines 1 "$(printf 'word %.0s' $(seq 60))")"
+R="$(make_repo "- 2025-09-09-legacy · 2025-09-10 · feature/high · short · PR #1
+- 2026-01-01-t · 2026-01-02 · fix/medium · $LONG · PR #2")"
+OUT="$(lint "$R")"; RC=$?
+[ $RC -eq 1 ] || err "expected exit 1 for this spec's over-long entry, got $RC: $OUT"
+echo "$OUT" | grep -q "2026-01-01-t" || err "the failure must name the offending spec: $OUT"
 
 # ── guards ────────────────────────────────────────────────────────────────
 

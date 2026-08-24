@@ -6,8 +6,7 @@ CLAUDE.md (`spec-disposal: delete | archive` + `retention`).
 
 **Publish** (no PR/merge yet):
 
-1. Run `scripts/sdd-gate.*` and
-   `bash .prospect/scripts/sdd-artifact-lint.sh ${FOLDER}` once — red = stop.
+1. Run `scripts/sdd-gate.*` once — red = stop.
 2. Spec frontmatter: `status: implemented`, `completed: [today]`.
 3. Consolidate into `docs/` via the `docs-consolidator` agent (generate
    `docs/INDEX.md` from `.prospect/templates/docs-index.template.md` first
@@ -17,9 +16,12 @@ CLAUDE.md (`spec-disposal: delete | archive` + `retention`).
 4. Append ONE line to `specs/REGISTRY.md`, **≤50 words**:
    `[folder] · [date] · [work-type]/[rigor] · [tags] · [summary] · [PR/branch]`
    plus a metrics suffix from `metrics.md`: phases · wall-clock.
-5. Remaining Minor/Info findings → one tracked issue each (or a PR-body
+5. Run `bash .prospect/scripts/sdd-artifact-lint.sh ${FOLDER}` — it judges
+   this spec's artifacts and the registry line just written, so it runs
+   after step 4, not before it; red = stop.
+6. Remaining Minor/Info findings → one tracked issue each (or a PR-body
    list without a tracker).
-6. Archive mode: `git mv` the folder to `specs/archive/YYYY/` in the publish
+7. Archive mode: `git mv` the folder to `specs/archive/YYYY/` in the publish
    commit and prune archive folders older than the retention setting.
 
 Then hand off per the review mode below.
