@@ -58,16 +58,18 @@ find_registry() {
   return 1
 }
 
-# REGISTRY.md: every entry line ≤ 50 words. Entries are the lines carrying
-# the '·' separator, whatever bullet they start with; the file's heading and
-# its format legend are not entries.
+# REGISTRY.md: this spec's own entry ≤ 50 words. Entries are the lines
+# carrying the '·' separator. Only the ones naming this spec are judged —
+# the registry is append-only history, and a per-spec lint that failed on
+# records written by earlier specs would be red for a reason the spec being
+# completed cannot repair.
+SPEC_NAME="$(basename "$DIR")"
 REG="$(find_registry "$DIR")" || REG=""
 if [ -n "$REG" ]; then
   while IFS= read -r line; do
-    case "$line" in '#'*|Format:*) continue ;; esac
     w=$(wc -w <<<"$line" | tr -d ' ')
-    [ "$w" -le 50 ] || err "REGISTRY.md entry exceeds 50 words ($w): ${line:0:60}…"
-  done < <(grep -F '·' "$REG")
+    [ "$w" -le 50 ] || err "REGISTRY.md entry for $SPEC_NAME exceeds 50 words ($w)"
+  done < <(grep -F '·' "$REG" | grep -F "$SPEC_NAME")
 fi
 
 if [ "$FAIL" -eq 0 ]; then

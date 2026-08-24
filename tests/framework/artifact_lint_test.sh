@@ -86,7 +86,7 @@ LONG="$(repeat_lines 1 "$(printf 'word %.0s' $(seq 60))")"
 R="$(make_repo "2026-01-01-t · 2026-01-02 · fix/medium · $LONG · PR #1")"
 OUT="$(lint "$R")"; RC=$?
 [ $RC -eq 1 ] || err "expected exit 1 for a >50-word entry, got $RC: $OUT"
-echo "$OUT" | grep -q "REGISTRY.md entry exceeds 50 words" || err "missing registry failure: $OUT"
+echo "$OUT" | grep -q "REGISTRY.md entry for 2026-01-01-t exceeds 50 words" || err "missing registry failure: $OUT"
 
 t "the registry format legend is not treated as an entry"
 R="$(make_repo "- 2026-01-01-t · 2026-01-02 · fix/medium · short summary · PR #1")"

@@ -127,10 +127,13 @@ else
       fi
       ;;
     fix)
+      # test-map.md is the fix path's "implement has run" probe: the implement
+      # fragment writes it with the regression mapping before any code changes.
       if [ -z "$approved" ]; then phase=specify
       elif validation_pass || grep -q '^## Validation' "$SPEC"; then phase=complete
-      elif has_file validation-report.md; then phase=implement
-      else phase=implement
+      elif [ "$rigor" = low ]; then phase=implement
+      elif ! has_file test-map.md; then phase=implement
+      else phase=validate
       fi
       ;;
     docs)
