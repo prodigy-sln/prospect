@@ -1,3 +1,7 @@
 # Shell scripts must be LF — bash rejects CRLF (`set -o pipefail\r`)
 *.sh   text eol=lf
 *.bash text eol=lf
+
+# The resolver reads matrix.tsv field-by-field; a CRLF terminator would
+# attach to the fragment path and every phase would resolve as missing.
+*.tsv  text eol=lf

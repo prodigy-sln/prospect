@@ -233,7 +233,7 @@ while IFS=$'\t' read -r wtype bucket phase fragments; do
   for frag in "${FR[@]}"; do
     [ -f "$REPO_ROOT/.prospect/prompts/$frag" ] || err "matrix references missing fragment: $frag"
   done
-done < "$REPO_ROOT/.prospect/prompts/matrix.tsv"
+done < <(tr -d '\r' < "$REPO_ROOT/.prospect/prompts/matrix.tsv")
 
 echo ""
 if [ $FAIL -eq 0 ]; then

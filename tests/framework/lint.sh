@@ -47,7 +47,7 @@ while IFS=$'\t' read -r wtype rigors phase fragments; do
     total=$((total + $(words "$f")))
   done
   [ "$total" -le 1100 ] || err "matrix $wtype/$rigors/$phase composes to $total words (budget 1100)"
-done < .prospect/prompts/matrix.tsv
+done < <(tr -d '\r' < .prospect/prompts/matrix.tsv)
 
 # --- Total prompt surface ----------------------------------------------
 TOTAL=0

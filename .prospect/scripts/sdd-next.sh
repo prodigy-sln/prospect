@@ -147,11 +147,11 @@ fi
 
 # ── Compose ───────────────────────────────────────────────────────────────
 # Matrix rows carry an exact pipe-set of rigors (e.g. "high|xhigh|max").
-fragments="$(awk -F'\t' -v t="$wtype" -v r="$rigor" -v p="$phase" '
+fragments="$(tr -d '\r' < "$MATRIX" | awk -F'\t' -v t="$wtype" -v r="$rigor" -v p="$phase" '
   $1==t && $3==p {
     n = split($2, rs, "|")
     for (i = 1; i <= n; i++) if (rs[i] == r) { print $4; exit }
-  }' "$MATRIX")"
+  }')"
 
 if [ -z "$fragments" ]; then
   echo "no matrix entry for $wtype/$rigor/$phase" >&2
