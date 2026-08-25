@@ -22,6 +22,10 @@ Recommend and confirm with the user in ONE question round:
   compliance, or destructive migrations are touched) · `xhigh`/`max`
   (contested plans, many stakeholders)
 
+Rigor also caps the spec's scenario budget (15 · 40 · 70 · 110 · 160), so
+the size of the behavior surface is a legitimate reason to pick a higher
+tier.
+
 Record both in the spec frontmatter. Escalate later when new risk appears
 (record the reason); downgrade only with explicit user confirmation.
 

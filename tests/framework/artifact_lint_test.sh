@@ -79,6 +79,62 @@ repeat_lines 60 "- [ ] task" > "$R/specs/active/2026-01-01-t/tasks.md"
 OUT="$(lint "$R")"; RC=$?
 [ $RC -eq 0 ] || err "60 lines should pass: $OUT"
 
+# ── tasks.md budget scales with the spec's scenario count ────────────────
+
+# write_spec <repo> <n> — spec.md carrying n FR-style scenarios
+write_spec() {
+  local repo="$1" n="$2" i
+  {
+    echo "# Specification: Test"
+    echo "## Functional Requirements"
+    for ((i = 1; i <= n; i++)); do
+      echo "  - FR-1.$i-S1: WHEN a thing happens THE SYSTEM SHALL respond"
+    done
+  } > "$repo/specs/active/2026-01-01-t/spec.md"
+}
+
+t "without a spec.md the tasks budget stays at the 60-line floor"
+R="$(make_repo)"
+repeat_lines 61 "- [ ] task" > "$R/specs/active/2026-01-01-t/tasks.md"
+OUT="$(lint "$R")"; RC=$?
+[ $RC -eq 1 ] || err "expected exit 1 with no spec.md, got $RC: $OUT"
+echo "$OUT" | grep -q "budget 60" || err "expected the 60-line floor: $OUT"
+
+t "a 40-scenario spec keeps the 60-line floor"
+R="$(make_repo)"; write_spec "$R" 40
+repeat_lines 60 "- [ ] task" > "$R/specs/active/2026-01-01-t/tasks.md"
+OUT="$(lint "$R")"; RC=$?
+[ $RC -eq 0 ] || err "60 lines for 40 scenarios should pass: $OUT"
+
+t "a 40-scenario spec still fails one line over the floor"
+R="$(make_repo)"; write_spec "$R" 40
+repeat_lines 61 "- [ ] task" > "$R/specs/active/2026-01-01-t/tasks.md"
+OUT="$(lint "$R")"; RC=$?
+[ $RC -eq 1 ] || err "61 lines for 40 scenarios should fail: $OUT"
+
+t "a 110-scenario spec raises the tasks budget to 165 lines"
+R="$(make_repo)"; write_spec "$R" 110
+repeat_lines 165 "- [ ] task" > "$R/specs/active/2026-01-01-t/tasks.md"
+OUT="$(lint "$R")"; RC=$?
+[ $RC -eq 0 ] || err "165 lines for 110 scenarios should pass: $OUT"
+
+t "the scaled budget is still enforced one line over"
+R="$(make_repo)"; write_spec "$R" 110
+repeat_lines 166 "- [ ] task" > "$R/specs/active/2026-01-01-t/tasks.md"
+OUT="$(lint "$R")"; RC=$?
+[ $RC -eq 1 ] || err "166 lines for 110 scenarios should fail: $OUT"
+echo "$OUT" | grep -q "budget 165" || err "the failure must name the scaled budget: $OUT"
+
+t "a mini-spec's flat scenario list scales the budget too"
+R="$(make_repo)"
+{
+  echo "## Scenarios"
+  for i in $(seq 1 80); do echo "- S$i: WHEN x happens THE SYSTEM SHALL y"; done
+} > "$R/specs/active/2026-01-01-t/spec.md"
+repeat_lines 120 "- [ ] task" > "$R/specs/active/2026-01-01-t/tasks.md"
+OUT="$(lint "$R")"; RC=$?
+[ $RC -eq 0 ] || err "120 lines for 80 mini-spec scenarios should pass: $OUT"
+
 # ── REGISTRY.md ───────────────────────────────────────────────────────────
 
 t "an over-long registry entry without a bullet is caught"

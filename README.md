@@ -78,8 +78,9 @@ The pillars:
   (`WHEN … THE SYSTEM SHALL …`); each scenario is the floor of at least
   one test, mapped 1:N in `test-map.md` — test names stay behavioral, code
   carries no spec references. An independent auditor checks the spec for
-  gaps *and* over-specification before you review it; past ~40 scenarios
-  every addition needs your confirmation.
+  gaps *and* over-specification before you review it. The scenario budget
+  scales with rigor (15 / 40 / 70 / 110 / 160); past it every addition
+  needs your confirmation.
 - **TDD with honest tests.** At `medium+` a test author that has never
   seen any implementation designs the interface and writes the failing
   tests; implementation happens inline and must conform, with disputes

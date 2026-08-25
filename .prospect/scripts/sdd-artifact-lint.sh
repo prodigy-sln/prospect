@@ -15,10 +15,19 @@ err() { echo "ARTIFACT LINT: $*"; FAIL=1; }
 # awk counts a final line that carries no newline; wc -l would not.
 lines() { awk 'END { print NR }' "$1"; }
 
-# tasks.md: 60 lines
+# tasks.md: one line per task plus its scenario line, so the budget
+# tracks the spec's scenario count at 1.5 lines each, with 60 as the
+# floor — the medium-rigor budget of 40 scenarios lands exactly on it.
 if [ -f "$DIR/tasks.md" ]; then
+  scenarios=0
+  if [ -f "$DIR/spec.md" ]; then
+    # matches both the FR form (FR-1.1-S1:) and the mini-spec form (S1:)
+    scenarios=$(grep -cE '^[[:space:]]*-[[:space:]]+(FR-[0-9.]+-)?S[0-9]+:' "$DIR/spec.md") || scenarios=0
+  fi
+  tasks_budget=$(( (scenarios * 3 + 1) / 2 ))
+  [ "$tasks_budget" -ge 60 ] || tasks_budget=60
   n=$(lines "$DIR/tasks.md")
-  [ "$n" -le 60 ] || err "tasks.md: $n lines (budget 60) — move rationale to the spec, lessons to docs/"
+  [ "$n" -le "$tasks_budget" ] || err "tasks.md: $n lines (budget $tasks_budget for $scenarios scenarios) — move rationale to the spec, lessons to docs/"
 fi
 
 # test-map.md: header + one line per mapping; no prose blocks (cap: 3 lines
