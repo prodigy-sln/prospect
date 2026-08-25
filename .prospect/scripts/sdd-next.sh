@@ -70,10 +70,15 @@ case "$wtype" in
   *) echo "unknown work-type: $wtype" >&2; exit 3 ;;
 esac
 
+# Rigor selects the phase bucket and the spec's scenario budget. The
+# ceiling rises with rigor because more scenarios mean more surface to
+# verify, and the higher tiers already pay for that verification.
 case "$rigor" in
-  low) bucket=low ;;
-  medium) bucket=medium ;;
-  high|xhigh|max) bucket=high ;;
+  low) bucket=low; scenario_budget=15 ;;
+  medium) bucket=medium; scenario_budget=40 ;;
+  high) bucket=high; scenario_budget=70 ;;
+  xhigh) bucket=high; scenario_budget=110 ;;
+  max) bucket=high; scenario_budget=160 ;;
   *) echo "unknown rigor: $rigor" >&2; exit 3 ;;
 esac
 
@@ -179,6 +184,7 @@ echo "phase: $phase"
 
 if [ "$explain" -eq 1 ]; then
   echo "approved: ${approved:-no}"
+  echo "scenario-budget: $scenario_budget"
   echo "fragments: $fragments"
   exit 0
 fi
@@ -194,6 +200,7 @@ for frag in "${FRAGS[@]}"; do
   sed -e "s|\${FOLDER}|specs/active/$folder|g" \
       -e "s|\${NAME}|$folder|g" \
       -e "s|\${RIGOR}|$rigor|g" \
+      -e "s|\${SCENARIO_BUDGET}|$scenario_budget|g" \
       -e "s|\${WORK_TYPE}|$wtype|g" "$f"
   echo ""
 done

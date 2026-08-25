@@ -226,6 +226,30 @@ echo "$OUT" | grep -q "Unattended operation" || err "autonomy addendum missing u
 OUT2="$(resolve "$R" 2026-01-01-aa)"
 echo "$OUT2" | grep -q "Unattended operation" && err "autonomy addendum leaked without --auto"
 
+# ── scenario budget ───────────────────────────────────────────────────────
+
+t "the specify prompt carries the rigor tier's scenario budget"
+for pair in low:15 medium:40 high:70 xhigh:110 max:160; do
+  rg="${pair%%:*}"; want="${pair##*:}"
+  R="$(make_repo)"
+  make_spec "$R" 2026-01-01-aa feature "$rg"
+  OUT="$(resolve "$R" 2026-01-01-aa)"
+  echo "$OUT" | grep -qE "Scenario budget[^0-9]*$want" \
+    || err "$rg: specify prompt does not carry budget $want"
+done
+
+t "no resolved prompt leaks an unsubstituted scenario-budget placeholder"
+R="$(make_repo)"
+make_spec "$R" 2026-01-01-aa feature high
+OUT="$(resolve "$R" 2026-01-01-aa)"
+echo "$OUT" | grep -q "SCENARIO_BUDGET" && err "the placeholder survived substitution"
+
+t "--explain reports the resolved scenario budget"
+R="$(make_repo)"
+make_spec "$R" 2026-01-01-aa feature xhigh
+OUT="$(resolve "$R" 2026-01-01-aa --explain)"
+echo "$OUT" | grep -q "scenario-budget: 110" || err "--explain omits the budget: $OUT"
+
 t "every matrix row references only fragment files that exist"
 while IFS=$'\t' read -r wtype bucket phase fragments; do
   case "$wtype" in \#*|'') continue ;; esac
