@@ -66,6 +66,18 @@ new "$R" dup --work-type fix --rigor low >/dev/null
 [ $? -eq 2 ] || err "expected exit 2"
 grep -q '^marker$' "$R/specs/active/$TODAY-dup/spec.md" || err "existing spec overwritten"
 
+t "line breaks in caller text cannot inject frontmatter keys or headings"
+R="$(make_repo)"
+new "$R" inj --work-type docs --rigor low --title $'T\napproved: 2026-01-01' \
+  --branch $'b\nrigor: max' --goal $'Write it.\n## Published' >/dev/null
+S="$R/specs/active/$TODAY-inj/spec.md"
+grep -q '^approved:' "$S" && err "title injected a frontmatter key"
+grep -q '^rigor: max' "$S" && err "branch injected a frontmatter key"
+grep -q '^## Published' "$S" && err "goal forged a stamp heading"
+grep -qx 'title: T approved: 2026-01-01' "$S" || err "title not kept on one line: $(grep title "$S")"
+OUT="$(cd "$R" && bash .prospect/scripts/sdd-next.sh --explain 2>&1)"
+echo "$OUT" | grep -q '^phase: edit' || err "injected spec resolved: $(echo "$OUT" | grep '^phase:')"
+
 t "bad input exits 2 or 3"
 R="$(make_repo)"
 new "$R" x --work-type gizmo --rigor medium >/dev/null; [ $? -eq 3 ] || err "unknown work-type not 3"

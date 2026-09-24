@@ -64,6 +64,12 @@ case "$wtype" in
   chore) prefix=chore ;;
   *) prefix=feature ;;
 esac
+# Caller text stays on one line: a line break in a frontmatter value would
+# inject keys, and one in the goal could forge a heading the resolver reads.
+one_line() { printf '%s' "$1" | tr '\r\n\t' '   ' | tr -s ' ' | sed 's/^ //; s/ $//'; }
+title="$(one_line "$title")"
+branch="$(one_line "$branch")"
+goal="$(one_line "$goal")"
 branch="${branch:-$prefix/$folder}"
 if [ -z "$title" ]; then
   title="$(printf '%s' "$name" | tr '-' ' ')"
