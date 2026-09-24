@@ -2,7 +2,9 @@
 
 Read `spec.md`, `tasks.md`, `architecture.md` (if present),
 `standards/global/testing.md`, `standards/global/code-quality.md`. Resume
-from the first unchecked task. Per tasks-phase:
+from the first unchecked task. A task marked ` — reopened R<n>` goes back
+through RED: the test author revises its `(stale R<n>)` tests in
+`test-map.md` and clears those markers. Per tasks-phase:
 
 **RED — delegate.** Spawn `sdd-test-author` as a named agent
 (`test-author-phase-N`) with only: spec path, this phase's scenario IDs, and

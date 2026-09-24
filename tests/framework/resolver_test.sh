@@ -261,6 +261,58 @@ echo "$OUT" | grep -q "Unattended operation" || err "autonomy addendum missing u
 OUT2="$(resolve "$R" 2026-01-01-aa)"
 echo "$OUT2" | grep -q "Unattended operation" && err "autonomy addendum leaked without --auto"
 
+# ── reopen ledger ────────────────────────────────────────────────────────
+
+# reopened_repo — tasks pending, specify reopened (closed R1, open R2 + R3)
+reopened_repo() {
+  local r; r="$(make_repo)"
+  make_spec "$r" 2026-01-01-aa feature medium 2026-01-02
+  printf -- '- [ ] T01 a — reopened R2\n      Scenarios: FR-1.1-S1\n' > "$r/specs/active/2026-01-01-aa/tasks.md"
+  cat > "$r/specs/active/2026-01-01-aa/reopen.md" <<'EOF'
+# Reopen Ledger
+
+- [closed] R1 · phase: implement · scope: all · reason: old · at: 2026-01-01T00:00:00Z
+- [open] R2 · phase: specify · scope: FR-1.1-S1 · reason: a|b & c · at: 2026-01-02T00:00:00Z
+- [open] R3 · phase: tasks · scope: FR-1.1-S1 · reason: a|b & c · at: 2026-01-02T00:00:00Z
+EOF
+  echo "$r"
+}
+
+t "the first open reopen entry wins over the disk-state probes"
+R="$(reopened_repo)"
+OUT="$(resolve "$R")"
+echo "$OUT" | grep -q "^phase: specify" || err "expected specify, got: $(echo "$OUT" | grep '^phase:')"
+echo "$OUT" | grep -q "^## Reopened phase" || err "reopen fragment not appended"
+echo "$OUT" | grep -qF -- '- [open] R2 · phase: specify · scope: FR-1.1-S1 · reason: a|b & c' \
+  || err "entry not substituted verbatim"
+echo "$OUT" | grep -q 'REOPEN}' && err "reopen placeholder survived"
+OUT="$(resolve "$R" 2026-01-01-aa --explain)"
+echo "$OUT" | grep -q "^reopen: - \[open\] R2" || err "--explain omits the reopen entry"
+
+t "later open entries run once earlier ones close, then the probes resume"
+R="$(reopened_repo)"
+sed -i 's/\[open\] R2/[closed] R2/' "$R/specs/active/2026-01-01-aa/reopen.md"
+OUT="$(resolve "$R" 2026-01-01-aa --explain)"
+echo "$OUT" | grep -q "^phase: tasks" || err "expected tasks, got: $(echo "$OUT" | grep '^phase:')"
+sed -i 's/\[open\] R3/[closed] R3/' "$R/specs/active/2026-01-01-aa/reopen.md"
+OUT="$(resolve "$R" 2026-01-01-aa --explain)"
+echo "$OUT" | grep -q "^phase: implement" || err "expected implement, got: $(echo "$OUT" | grep '^phase:')"
+echo "$OUT" | grep -q "reopen" && err "closed ledger still composes the reopen fragment"
+
+t "--phase override wins over the reopen ledger"
+R="$(reopened_repo)"
+OUT="$(resolve "$R" 2026-01-01-aa --phase validate --explain)"
+echo "$OUT" | grep -q "^phase: validate" || err "override ignored: $(echo "$OUT" | grep '^phase:')"
+echo "$OUT" | grep -q "shared/reopen.md" && err "override still composes the reopen fragment"
+
+t "a reopen entry for a phase without a matrix cell exits 3"
+R="$(make_repo)"
+make_spec "$R" 2026-01-01-aa feature low 2026-01-02
+printf -- '- [open] R1 · phase: tasks · scope: all · reason: x · at: 2026-01-01T00:00:00Z\n' \
+  > "$R/specs/active/2026-01-01-aa/reopen.md"
+resolve "$R" >/dev/null
+[ $? -eq 3 ] || err "expected exit 3"
+
 # ── scenario budget ───────────────────────────────────────────────────────
 
 t "the specify prompt carries the rigor tier's scenario budget"

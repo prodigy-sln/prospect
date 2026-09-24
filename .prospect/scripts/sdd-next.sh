@@ -4,7 +4,9 @@
 # phase, and emits the composed prompt for that phase from fragment files.
 # The LLM never branches on work-type or rigor; this script does.
 #
-# Usage: sdd-next.sh [folder-name] [--phase <name>] [--explain]
+# Usage: sdd-next.sh [folder-name] [--phase <name>] [--explain] [--auto]
+# An open entry in the folder's reopen.md (see sdd-reopen.sh) runs before
+# the disk-state probes.
 # Exit codes: 0 resolved · 2 folder ambiguity/missing · 3 unknown type/cell
 set -u
 
@@ -106,10 +108,20 @@ has_section_content() { # has_section_content <file> <heading> — section exist
 
 has_discussion() { grep -q '^## Discussion Findings' "$DIR/$1" 2>/dev/null; }
 
+# A completion heading stamped into spec.md; sdd-reopen marks it stale.
+has_stamp() { grep -qE "^## $1[[:space:]]*\$" "$SPEC"; }
+
 # ── Phase detection ───────────────────────────────────────────────────────
+# Precedence: --phase override, then the first open reopen-ledger entry,
+# then the disk-state probes.
 phase=""
+reopen_entry="$(grep -m1 '^- \[open\] ' "$DIR/reopen.md" 2>/dev/null | tr -d '\r')"
 if [ -n "$phase_override" ]; then
   phase="$phase_override"
+  reopen_entry=""
+elif [ -n "$reopen_entry" ]; then
+  phase="$(printf '%s' "$reopen_entry" | sed -n 's/.* · phase: \([^ ]*\) · .*/\1/p')"
+  [ -n "$phase" ] || { echo "malformed reopen entry: $reopen_entry" >&2; exit 3; }
 else
   case "$wtype" in
     feature)
@@ -117,7 +129,7 @@ else
       elif [ "$bucket" = high ] && has_section_content spec.md "Architecture Delta" && ! has_file architecture.md; then phase=architect
       elif { [ "$rigor" = xhigh ] || [ "$rigor" = max ]; } && has_file architecture.md && ! has_discussion architecture.md; then phase=discuss
       elif [ "$rigor" = low ]; then
-        if grep -q '^## Validation' "$SPEC"; then phase=complete; else phase=implement; fi
+        if has_stamp Validation; then phase=complete; else phase=implement; fi
       elif ! has_file tasks.md; then phase=tasks
       elif has_unchecked_tasks; then phase=implement
       elif validation_pass; then phase=complete
@@ -144,16 +156,16 @@ else
       elif [ "$rigor" = low ]; then
         # Only the low path closes itself by stamping the spec; at medium+
         # the validate phase owns the verdict.
-        if grep -q '^## Validation' "$SPEC"; then phase=complete; else phase=implement; fi
+        if has_stamp Validation; then phase=complete; else phase=implement; fi
       elif ! has_file test-map.md; then phase=implement
       else phase=validate
       fi
       ;;
     docs)
-      if validation_pass || grep -q '^## Published' "$SPEC"; then phase=complete; else phase=edit; fi
+      if validation_pass || has_stamp Published; then phase=complete; else phase=edit; fi
       ;;
     chore)
-      if grep -q '^## Done' "$SPEC"; then phase=complete; else phase=work; fi
+      if has_stamp Done; then phase=complete; else phase=work; fi
       ;;
   esac
 fi
@@ -179,6 +191,11 @@ if [ "$phase" = "complete" ]; then
   fragments="$fragments,shared/complete-$review_mode.md"
 fi
 
+# A reopened phase amends its artifacts instead of writing them fresh.
+if [ -n "$reopen_entry" ]; then
+  fragments="$fragments,shared/reopen.md"
+fi
+
 # Unattended operation appends the autonomy addendum.
 if [ "$auto" -eq 1 ]; then
   fragments="$fragments,shared/autonomy.md"
@@ -194,8 +211,13 @@ if [ "$explain" -eq 1 ]; then
   echo "approved: ${approved:-no}"
   echo "scenario-budget: $scenario_budget"
   echo "fragments: $fragments"
+  [ -n "$reopen_entry" ] && echo "reopen: $reopen_entry"
   exit 0
 fi
+
+# sed replacement text: escape the delimiter, backslash, and ampersand.
+sed_esc() { printf '%s' "$1" | sed -e 's/[\\|&]/\\&/g'; }
+reopen_sub="$(sed_esc "$reopen_entry")"
 
 echo "--- PROMPT ---"
 IFS=',' read -ra FRAGS <<< "$fragments"
@@ -209,7 +231,8 @@ for frag in "${FRAGS[@]}"; do
       -e "s|\${NAME}|$folder|g" \
       -e "s|\${RIGOR}|$rigor|g" \
       -e "s|\${SCENARIO_BUDGET}|$scenario_budget|g" \
-      -e "s|\${WORK_TYPE}|$wtype|g" "$f"
+      -e "s|\${WORK_TYPE}|$wtype|g" \
+      -e "s|\${REOPEN}|$reopen_sub|g" "$f"
   echo ""
 done
 
