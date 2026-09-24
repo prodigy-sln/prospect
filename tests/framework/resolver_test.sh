@@ -260,6 +260,23 @@ OUT="$(resolve "$R" 2026-01-01-aa --auto)"
 echo "$OUT" | grep -q "Unattended operation" || err "autonomy addendum missing under --auto"
 OUT2="$(resolve "$R" 2026-01-01-aa)"
 echo "$OUT2" | grep -q "Unattended operation" && err "autonomy addendum leaked without --auto"
+echo "$OUT" | grep -q "policy in \`.prospect/autonomy.md\`" || err "default policy path not substituted"
+echo "$OUT" | grep -q "^### STOP D<n>" || err "STOP shape missing from the addendum"
+
+t "PROSPECT_AUTONOMY points the addendum at another policy file"
+R="$(make_repo)"
+make_spec "$R" 2026-01-01-aa feature medium 2026-01-02
+OUT="$(PROSPECT_AUTONOMY=.prospect/autonomy-harness.md resolve "$R" 2026-01-01-aa --auto)"
+echo "$OUT" | grep -q "policy in \`.prospect/autonomy-harness.md\`" || err "override path not substituted"
+echo "$OUT" | grep -q 'AUTONOMY}' && err "autonomy placeholder survived"
+OUT="$(PROSPECT_AUTONOMY=.prospect/autonomy-harness.md resolve "$R" 2026-01-01-aa --auto --explain)"
+echo "$OUT" | grep -q "^autonomy: .prospect/autonomy-harness.md" || err "--explain omits the policy"
+
+t "an unreadable PROSPECT_AUTONOMY exits 2 under --auto"
+R="$(make_repo)"
+make_spec "$R" 2026-01-01-aa feature medium 2026-01-02
+PROSPECT_AUTONOMY=missing.md resolve "$R" 2026-01-01-aa --auto >/dev/null
+[ $? -eq 2 ] || err "expected exit 2 for a missing policy file"
 
 # ── reopen ledger ────────────────────────────────────────────────────────
 

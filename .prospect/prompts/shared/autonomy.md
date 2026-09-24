@@ -1,6 +1,6 @@
 ## Unattended operation
 
-You run under the autonomy policy in `.prospect/autonomy.md`; no user is
+You run under the autonomy policy in `${AUTONOMY}`; no user is
 watching. First read `${FOLDER}/decisions.md` if present: a STOP with
 `status: resolved` carries an `answer:` — apply it as the decision and
 proceed; never re-ask it. Where the phase prompt says "present to the user"

@@ -196,8 +196,17 @@ if [ -n "$reopen_entry" ]; then
   fragments="$fragments,shared/reopen.md"
 fi
 
-# Unattended operation appends the autonomy addendum.
+# Unattended operation appends the autonomy addendum. PROSPECT_AUTONOMY
+# names an alternative policy file (e.g. .prospect/autonomy-harness.md).
+autonomy_policy=".prospect/autonomy.md"
 if [ "$auto" -eq 1 ]; then
+  if [ -n "${PROSPECT_AUTONOMY:-}" ]; then
+    if [ ! -f "$PROSPECT_AUTONOMY" ] || [ ! -r "$PROSPECT_AUTONOMY" ]; then
+      echo "PROSPECT_AUTONOMY is not a readable file: $PROSPECT_AUTONOMY" >&2
+      exit 2
+    fi
+    autonomy_policy="$PROSPECT_AUTONOMY"
+  fi
   fragments="$fragments,shared/autonomy.md"
 fi
 
@@ -212,12 +221,14 @@ if [ "$explain" -eq 1 ]; then
   echo "scenario-budget: $scenario_budget"
   echo "fragments: $fragments"
   [ -n "$reopen_entry" ] && echo "reopen: $reopen_entry"
+  [ "$auto" -eq 1 ] && echo "autonomy: $autonomy_policy"
   exit 0
 fi
 
 # sed replacement text: escape the delimiter, backslash, and ampersand.
 sed_esc() { printf '%s' "$1" | sed -e 's/[\\|&]/\\&/g'; }
 reopen_sub="$(sed_esc "$reopen_entry")"
+autonomy_sub="$(sed_esc "$autonomy_policy")"
 
 echo "--- PROMPT ---"
 IFS=',' read -ra FRAGS <<< "$fragments"
@@ -232,7 +243,8 @@ for frag in "${FRAGS[@]}"; do
       -e "s|\${RIGOR}|$rigor|g" \
       -e "s|\${SCENARIO_BUDGET}|$scenario_budget|g" \
       -e "s|\${WORK_TYPE}|$wtype|g" \
-      -e "s|\${REOPEN}|$reopen_sub|g" "$f"
+      -e "s|\${REOPEN}|$reopen_sub|g" \
+      -e "s|\${AUTONOMY}|$autonomy_sub|g" "$f"
   echo ""
 done
 

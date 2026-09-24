@@ -72,7 +72,7 @@ FORBIDDEN='TeamCreate|TeamDelete|sdd-test-writer|sdd-implementer|sdd-refactorer|
 HISTORY='previously|no longer|changed from|used to be|instead of the old|replaces the'
 
 for f in .claude/skills/*/SKILL.md .claude/agents/*.md .claude/workflows/*.js \
-         .prospect/prompts/*/*.md .prospect/templates/*.md .prospect/autonomy.md \
+         .prospect/prompts/*/*.md .prospect/templates/*.md .prospect/autonomy*.md \
          standards/global/*.md product/*.template.md CLAUDE.md README.md; do
   [ -f "$f" ] || continue
   if grep -nEw "$FORBIDDEN" "$f" >/dev/null 2>&1; then
