@@ -108,8 +108,9 @@ has_section_content() { # has_section_content <file> <heading> — section exist
 
 has_discussion() { grep -q '^## Discussion Findings' "$DIR/$1" 2>/dev/null; }
 
-# A completion heading stamped into spec.md; sdd-reopen marks it stale.
-has_stamp() { grep -qE "^## $1[[:space:]]*\$" "$SPEC"; }
+# A completion heading stamped into spec.md, dated or bare
+# ("## Validation — 2026-01-03"); sdd-reopen marks it "(stale R<n>)".
+has_stamp() { grep -E "^## $1([[:space:]]|\$)" "$SPEC" | grep -qv '(stale '; }
 
 # ── Phase detection ───────────────────────────────────────────────────────
 # Precedence: --phase override, then the first open reopen-ledger entry,
@@ -120,7 +121,7 @@ if [ -n "$phase_override" ]; then
   phase="$phase_override"
   reopen_entry=""
 elif [ -n "$reopen_entry" ]; then
-  phase="$(printf '%s' "$reopen_entry" | sed -n 's/.* · phase: \([^ ]*\) · .*/\1/p')"
+  phase="$(printf '%s' "$reopen_entry" | sed -n 's/^- \[open\] R[0-9]* · phase: \([^ ]*\) · .*/\1/p')"
   [ -n "$phase" ] || { echo "malformed reopen entry: $reopen_entry" >&2; exit 3; }
 else
   case "$wtype" in
@@ -205,11 +206,16 @@ if [ -n "$reopen_entry" ]; then
 fi
 
 # Unattended operation appends the autonomy addendum. PROSPECT_AUTONOMY
-# names an alternative policy file (e.g. .prospect/autonomy-harness.md).
+# names an alternative policy file (e.g. .prospect/autonomy-harness.md);
+# a relative path is relative to the repo root, as the prompt reads it.
 autonomy_policy=".prospect/autonomy.md"
 if [ "$auto" -eq 1 ]; then
   if [ -n "${PROSPECT_AUTONOMY:-}" ]; then
-    if [ ! -f "$PROSPECT_AUTONOMY" ] || [ ! -r "$PROSPECT_AUTONOMY" ]; then
+    case "$PROSPECT_AUTONOMY" in
+      /*|[A-Za-z]:[\\/]*) policy_file="$PROSPECT_AUTONOMY" ;;
+      *) policy_file="$ROOT/$PROSPECT_AUTONOMY" ;;
+    esac
+    if [ ! -f "$policy_file" ] || [ ! -r "$policy_file" ]; then
       echo "PROSPECT_AUTONOMY is not a readable file: $PROSPECT_AUTONOMY" >&2
       exit 2
     fi

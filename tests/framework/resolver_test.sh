@@ -178,6 +178,30 @@ printf 'FR-1-S1 -> reproduces the defect
 OUT="$(resolve "$R")"
 echo "$OUT" | grep -q "^phase: implement" || err "low should stay on implement, got: $(echo "$OUT" | grep '^phase:')"
 
+t "low rigor: a dated validation stamp completes; a stale one does not"
+for stamp in '## Validation' '## Validation — 2026-01-03 gate green' '## Validation (2026-01-03)'; do
+  R="$(make_repo)"
+  make_spec "$R" 2026-01-01-aa fix low 2026-01-02
+  printf '\n%s\n' "$stamp" >> "$R/specs/active/2026-01-01-aa/spec.md"
+  OUT="$(resolve "$R" 2026-01-01-aa --explain)"
+  echo "$OUT" | grep -q "^phase: complete" || err "'$stamp' resolved to: $(echo "$OUT" | grep '^phase:')"
+done
+R="$(make_repo)"
+make_spec "$R" 2026-01-01-aa feature low 2026-01-02
+printf '\n## Validation (stale R1) — 2026-01-03\n## Validations elsewhere\n' >> "$R/specs/active/2026-01-01-aa/spec.md"
+OUT="$(resolve "$R" 2026-01-01-aa --explain)"
+echo "$OUT" | grep -q "^phase: implement" || err "stale stamp resolved to: $(echo "$OUT" | grep '^phase:')"
+
+t "docs and chore accept dated stamps"
+R="$(make_repo)"
+make_spec "$R" 2026-01-01-aa docs low 2026-01-02
+printf '\n## Published — 2026-01-03, docs/api.md\n' >> "$R/specs/active/2026-01-01-aa/spec.md"
+resolve "$R" 2026-01-01-aa --explain | grep -q "^phase: complete" || err "dated Published not honored"
+R="$(make_repo)"
+make_spec "$R" 2026-01-01-aa chore low 2026-01-02
+printf '\n## Done 2026-01-03 gate green\n' >> "$R/specs/active/2026-01-01-aa/spec.md"
+resolve "$R" 2026-01-01-aa --explain | grep -q "^phase: complete" || err "dated Done not honored"
+
 t "docs: resolves to edit"
 R="$(make_repo)"
 make_spec "$R" 2026-01-01-aa docs low 2026-01-02
@@ -278,6 +302,14 @@ make_spec "$R" 2026-01-01-aa feature medium 2026-01-02
 PROSPECT_AUTONOMY=missing.md resolve "$R" 2026-01-01-aa --auto >/dev/null
 [ $? -eq 2 ] || err "expected exit 2 for a missing policy file"
 
+t "a relative PROSPECT_AUTONOMY resolves against the repo root, not the cwd"
+R="$(make_repo)"
+make_spec "$R" 2026-01-01-aa feature medium 2026-01-02
+OUT="$(cd "$R/specs" && PROSPECT_AUTONOMY=.prospect/autonomy-harness.md \
+  bash ../.prospect/scripts/sdd-next.sh 2026-01-01-aa --auto 2>&1)"; RC=$?
+[ $RC -eq 0 ] || err "expected exit 0 from a subdirectory, got $RC: $OUT"
+echo "$OUT" | grep -q "policy in \`.prospect/autonomy-harness.md\`" || err "relative policy not substituted"
+
 # ── review mode ──────────────────────────────────────────────────────────
 
 # complete_repo <review-mode-line> — feature spec ready to complete
@@ -345,6 +377,14 @@ sed -i 's/\[open\] R3/[closed] R3/' "$R/specs/active/2026-01-01-aa/reopen.md"
 OUT="$(resolve "$R" 2026-01-01-aa --explain)"
 echo "$OUT" | grep -q "^phase: implement" || err "expected implement, got: $(echo "$OUT" | grep '^phase:')"
 echo "$OUT" | grep -q "reopen" && err "closed ledger still composes the reopen fragment"
+
+t "the entry's own phase field wins over a look-alike in its reason"
+R="$(make_repo)"
+make_spec "$R" 2026-01-01-aa feature medium 2026-01-02
+printf -- '- [open] R1 · phase: tasks · scope: all · reason: x · phase: complete · y · at: 2026-01-01T00:00:00Z\n' \
+  > "$R/specs/active/2026-01-01-aa/reopen.md"
+OUT="$(resolve "$R" 2026-01-01-aa --explain)"
+echo "$OUT" | grep -q "^phase: tasks" || err "reason hijacked the phase: $(echo "$OUT" | grep '^phase:')"
 
 t "--phase override wins over the reopen ledger"
 R="$(reopened_repo)"
