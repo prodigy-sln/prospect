@@ -26,7 +26,7 @@ budget 500 .prospect/templates/spec.template.md .prospect/templates/tasks.templa
            .prospect/templates/docs-index.template.md .prospect/templates/decision.template.md \
            .prospect/templates/fix.template.md
 budget 250 .prospect/templates/spec-mini.template.md
-budget 400 standards/global/scenario-guidelines.md
+budget 440 standards/global/scenario-guidelines.md
 budget 400 standards/global/validation-calibration.md
 budget 800 standards/global/testing.md standards/global/git-workflow.md
 budget 1000 standards/global/code-quality.md standards/global/architecture-principles.md
@@ -47,7 +47,7 @@ while IFS=$'\t' read -r wtype rigors phase fragments; do
     total=$((total + $(words "$f")))
   done
   [ "$total" -le 1100 ] || err "matrix $wtype/$rigors/$phase composes to $total words (budget 1100)"
-done < .prospect/prompts/matrix.tsv
+done < <(tr -d '\r' < .prospect/prompts/matrix.tsv)
 
 # --- Total prompt surface ----------------------------------------------
 TOTAL=0

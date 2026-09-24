@@ -4,8 +4,11 @@ Acceptance scenarios are the test contract: each is the floor of at least
 one test — more when distinct code paths or boundaries need their own
 falsifier. Write scenarios so tests derive from them mechanically.
 Scenarios are a budget, not a score: merge variants exercising the same
-behavior path into one parameterized scenario; past ~40 the user confirms
-every addition.
+behavior path into one parameterized scenario. The budget scales with
+rigor (low 15 · medium 40 · high 70 · xhigh 110 · max 160) and is a
+confirmation threshold, not a wall: past it the user confirms every
+addition, and larger work escalates rigor or splits into separate specs.
+Under budget, never merge scenarios that need separate falsifiers.
 
 Tests carry no spec references: test names describe behavior ("rejects an
 expired token with 410"), and the scenario↔test mapping lives in the spec

@@ -28,7 +28,8 @@ author: [name]
 [Scenario rules: standards/global/scenario-guidelines.md. Each scenario is
 the floor of at least one test, mapped in this folder's test-map.md. Every
 FR needs at least one happy-path and one unwanted-behavior scenario. Past
-~40 scenarios, propose merges and get user confirmation.]
+this rigor's scenario budget (the tier list in scenario-guidelines.md),
+propose merges and get user confirmation.]
 
 ### [Requirement Group]
 

@@ -7,6 +7,8 @@
 3. Write `spec.md` from `.prospect/templates/spec-mini.template.md`: goal,
    flat scenario list (per `standards/global/scenario-guidelines.md`),
    non-empty Out of Scope. The scenario list is also the task list.
+   **Scenario budget**: ${SCENARIO_BUDGET}; past it, present the count
+   and let the user confirm before you keep more.
 4. Apply the audit rubric inline: every behavior has an unwanted-behavior
    scenario; outcomes observable; boundaries concrete; no contradictions.
 5. Present the spec; after approval set `approved: [today]` in the

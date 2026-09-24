@@ -15,10 +15,13 @@
    floor of at least one test. Fill `## Architecture Delta`: new external
    dependencies, boundaries, data models, or public contracts this feature
    introduces — or `none`. Out of Scope must be non-empty.
-   **Scenario budget**: past ~40 scenarios, present the count and a proposed
-   merge/cut list; the user confirms before you keep more.
-4. **Audit**: spawn `sdd-scenario-auditor` (spec path + guidelines path). It
-   reports gaps AND over-specification (mergeable near-duplicates).
+   **Scenario budget**: ${SCENARIO_BUDGET} at this spec's rigor. Past it,
+   present the count and a proposed merge/cut list; the user confirms
+   before you keep more. Under budget, never merge scenarios that need
+   separate falsifiers.
+4. **Audit**: spawn `sdd-scenario-auditor` (spec path + guidelines path +
+   scenario budget ${SCENARIO_BUDGET}). It reports gaps AND
+   over-specification (mergeable near-duplicates).
 5. **One approval**: present spec summary, audit gaps and prunes
    (accept/reject each), and design variants if any. After approval set
    `approved: [today]` in the frontmatter and commit

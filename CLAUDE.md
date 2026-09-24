@@ -26,6 +26,7 @@ Every spec carries `work-type:` and `rigor:` in its frontmatter.
 Rigor scales verification, not ceremony: `low` gate-only · `medium`
 (default) combined reviewer · `high` 3-reviewer workflow with verification
 and sign-off · `xhigh` parallel personas · `max` negotiating personas.
+Rigor also sets the spec's scenario budget: 15 · 40 · 70 · 110 · 160.
 The architect phase runs only when the spec declares a non-empty
 `## Architecture Delta`. Escalate rigor whenever new risk appears (record
 the reason); downgrade only with explicit user confirmation.

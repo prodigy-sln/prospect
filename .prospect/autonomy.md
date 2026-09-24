@@ -8,7 +8,7 @@ Everything not explicitly `auto` stops for the human. Tune per project.
 | work-type classification | stop |
 | rigor selection | stop (default recommendation: medium) |
 | spec approval | stop |
-| scenario-budget overrun (>40) | stop |
+| scenario-budget overrun (past the rigor tier's budget) | stop |
 | architecture/decision approval | stop |
 | discussion deadlocks | stop |
 | validation sign-off (high+) | stop |
