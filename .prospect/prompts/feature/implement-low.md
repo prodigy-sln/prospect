@@ -14,6 +14,6 @@ Work scenario by scenario from `spec.md`:
    (checklist: naming, duplication, dead code, error messages, nesting,
    standards fit); commit `refactor: improve [component]` only if changed.
 5. Run `scripts/sdd-gate.*` to exit 0; fix exactly what it reports.
-6. Append to `spec.md`: `## Validation` with the date and gate result.
+6. Append `## Validation — YYYY-MM-DD` to `spec.md`, then the gate result.
 
 Then run `bash .prospect/scripts/sdd-next.sh ${NAME}` and continue.

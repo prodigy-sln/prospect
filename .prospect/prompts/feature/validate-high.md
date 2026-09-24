@@ -15,10 +15,10 @@
    WHEN the Workflow tool is unavailable: spawn `sdd-review-correctness`,
    `sdd-review-coverage`, `sdd-review-quality` in parallel with the same
    inputs and apply the same merge rules manually.
-4. **Verdict**: PASS = gate green AND zero confirmed Blockers, Majors, and
+4. **Outcome**: PASS = gate green AND zero confirmed Blockers, Majors, and
    Minors. Write `${FOLDER}/validation-report.md` (≤120 lines): counts,
    scenario verdicts and abstentions, findings with citations, gate output,
-   metrics summary from `metrics.md`, verdict.
+   metrics summary; last line exactly `verdict: PASS` or `verdict: FAIL`.
 5. **Pass 2 is targeted.** Fix pass-1 findings (test ownership and
    arbitration apply), re-run the gate, then re-verify **the fixes only** —
    a fresh three-reviewer sweep runs solely when the fixes changed files

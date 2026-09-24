@@ -11,7 +11,7 @@ The deliverable is documentation; no test machinery applies.
 3. Gate: run the documentation stages of `scripts/sdd-gate.*` (link
    integrity, format) when the gate defines them, else verify links and
    INDEX consistency yourself and record how.
-4. Append `## Published` to `spec.md` (date, files touched). Commit
-   `docs: [summary]`.
+4. Append `## Published — YYYY-MM-DD` to `spec.md`, then the files
+   touched. Commit `docs: [summary]`.
 
 Then run `bash .prospect/scripts/sdd-next.sh ${NAME}` and continue.

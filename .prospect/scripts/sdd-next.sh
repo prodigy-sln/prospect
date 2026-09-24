@@ -4,7 +4,9 @@
 # phase, and emits the composed prompt for that phase from fragment files.
 # The LLM never branches on work-type or rigor; this script does.
 #
-# Usage: sdd-next.sh [folder-name] [--phase <name>] [--explain]
+# Usage: sdd-next.sh [folder-name] [--phase <name>] [--explain] [--auto]
+# An open entry in the folder's reopen.md (see sdd-reopen.sh) runs before
+# the disk-state probes.
 # Exit codes: 0 resolved · 2 folder ambiguity/missing · 3 unknown type/cell
 set -u
 
@@ -89,8 +91,19 @@ has_file() { [ -f "$DIR/$1" ]; }
 
 has_unchecked_tasks() { grep -q '^- \[ \]' "$DIR/tasks.md" 2>/dev/null; }
 
-# PASS must be the verdict's own value, not merely a word on the line.
-validation_pass() { grep -qiE 'verdict:[^A-Za-z]*(\*\*)?PASS|^\*\*PASS' "$DIR/validation-report.md" 2>/dev/null; }
+# The last verdict line decides: a line that opens with the label (bold,
+# heading, or list markup allowed: "**Verdict**: PASS", "Verdict: **PASS**")
+# and whose value is PASS itself, not merely a word later on the line. A
+# line that is exactly "**PASS**" / "**FAIL**" (or -ED) counts as one too.
+validation_pass() {
+  awk '
+    { l = tolower($0); sub(/\r$/, "", l) }
+    l ~ /^[[:space:]>#*_-]*verdict[*_[:space:]]*:/ {
+      v = l; sub(/^[^:]*:[*_[:space:]]*/, "", v); pass = (v ~ /^pass(ed)?([^a-z]|$)/)
+    }
+    l ~ /^[[:space:]]*\*\*(pass|passed|fail|failed)\*\*[[:space:]]*$/ { pass = (l ~ /pass/) }
+    END { exit !pass }' "$DIR/validation-report.md" 2>/dev/null
+}
 
 has_section_content() { # has_section_content <file> <heading> — section exists, non-empty, not "none"
   awk -v h="$2" '
@@ -106,10 +119,25 @@ has_section_content() { # has_section_content <file> <heading> — section exist
 
 has_discussion() { grep -q '^## Discussion Findings' "$DIR/$1" 2>/dev/null; }
 
+# A completion heading stamped into spec.md: bare, or followed by a
+# separator or date ("## Validation — 2026-01-03") — never a longer title
+# ("## Done criteria"). sdd-reopen matches the same pattern and marks the
+# heading "(stale R<n>)", which no longer counts.
+has_stamp() {
+  grep -E "^## $1([[:space:]]*\$|[[:space:]]*(—|–|:|\()|[[:space:]]+(-|[0-9]))" "$SPEC" | grep -qv '(stale '
+}
+
 # ── Phase detection ───────────────────────────────────────────────────────
+# Precedence: --phase override, then the first open reopen-ledger entry,
+# then the disk-state probes.
 phase=""
+reopen_entry="$(grep -m1 '^- \[open\] ' "$DIR/reopen.md" 2>/dev/null | tr -d '\r')"
 if [ -n "$phase_override" ]; then
   phase="$phase_override"
+  reopen_entry=""
+elif [ -n "$reopen_entry" ]; then
+  phase="$(printf '%s' "$reopen_entry" | sed -n 's/^- \[open\] R[0-9]* · phase: \([^ ]*\) · .*/\1/p')"
+  [ -n "$phase" ] || { echo "malformed reopen entry: $reopen_entry" >&2; exit 3; }
 else
   case "$wtype" in
     feature)
@@ -117,7 +145,7 @@ else
       elif [ "$bucket" = high ] && has_section_content spec.md "Architecture Delta" && ! has_file architecture.md; then phase=architect
       elif { [ "$rigor" = xhigh ] || [ "$rigor" = max ]; } && has_file architecture.md && ! has_discussion architecture.md; then phase=discuss
       elif [ "$rigor" = low ]; then
-        if grep -q '^## Validation' "$SPEC"; then phase=complete; else phase=implement; fi
+        if has_stamp Validation; then phase=complete; else phase=implement; fi
       elif ! has_file tasks.md; then phase=tasks
       elif has_unchecked_tasks; then phase=implement
       elif validation_pass; then phase=complete
@@ -128,7 +156,10 @@ else
       if [ -z "$approved" ]; then phase=specify
       elif [ "$bucket" != low ] && ! has_discussion spec.md; then phase=discuss
       elif ! has_file decision-record.md; then phase=decide
-      elif has_unchecked_tasks; then phase=implement
+      # Enforcement checks are the only tested deliverable; implement-checks
+      # writes tasks.md, so a missing file means that phase has not run.
+      elif has_section_content spec.md "Enforcement Checks" \
+           && { ! has_file tasks.md || has_unchecked_tasks; }; then phase=implement
       elif validation_pass; then phase=complete
       else phase=validate
       fi
@@ -141,16 +172,16 @@ else
       elif [ "$rigor" = low ]; then
         # Only the low path closes itself by stamping the spec; at medium+
         # the validate phase owns the verdict.
-        if grep -q '^## Validation' "$SPEC"; then phase=complete; else phase=implement; fi
+        if has_stamp Validation; then phase=complete; else phase=implement; fi
       elif ! has_file test-map.md; then phase=implement
       else phase=validate
       fi
       ;;
     docs)
-      if validation_pass || grep -q '^## Published' "$SPEC"; then phase=complete; else phase=edit; fi
+      if validation_pass || has_stamp Published; then phase=complete; else phase=edit; fi
       ;;
     chore)
-      if grep -q '^## Done' "$SPEC"; then phase=complete; else phase=work; fi
+      if has_stamp Done; then phase=complete; else phase=work; fi
       ;;
   esac
 fi
@@ -168,16 +199,43 @@ if [ -z "$fragments" ]; then
   exit 3
 fi
 
-# The completion handoff depends on the project's review mode (CLAUDE.md
-# setting `review-mode: solo | team`; default team).
+# The completion handoff depends on the review mode: env
+# PROSPECT_REVIEW_MODE, else the CLAUDE.md setting
+# `review-mode: solo | team | harness`; default team.
 if [ "$phase" = "complete" ]; then
-  review_mode="$(grep -oE 'review-mode: *(solo|team)' "$ROOT/CLAUDE.md" 2>/dev/null | head -1 | sed 's/.*: *//')"
+  review_mode="${PROSPECT_REVIEW_MODE:-}"
+  if [ -z "$review_mode" ]; then
+    review_mode="$(grep -oE 'review-mode: *(solo|team|harness)' "$ROOT/CLAUDE.md" 2>/dev/null | head -1 | sed 's/.*: *//')"
+  fi
   review_mode="${review_mode:-team}"
+  case "$review_mode" in
+    solo|team|harness) ;;
+    *) echo "unknown review mode: $review_mode" >&2; exit 3 ;;
+  esac
   fragments="$fragments,shared/complete-$review_mode.md"
 fi
 
-# Unattended operation appends the autonomy addendum.
+# A reopened phase amends its artifacts instead of writing them fresh.
+if [ -n "$reopen_entry" ]; then
+  fragments="$fragments,shared/reopen.md"
+fi
+
+# Unattended operation appends the autonomy addendum. PROSPECT_AUTONOMY
+# names an alternative policy file (e.g. .prospect/autonomy-harness.md);
+# a relative path is relative to the repo root, as the prompt reads it.
+autonomy_policy=".prospect/autonomy.md"
 if [ "$auto" -eq 1 ]; then
+  if [ -n "${PROSPECT_AUTONOMY:-}" ]; then
+    case "$PROSPECT_AUTONOMY" in
+      /*|[A-Za-z]:[\\/]*) policy_file="$PROSPECT_AUTONOMY" ;;
+      *) policy_file="$ROOT/$PROSPECT_AUTONOMY" ;;
+    esac
+    if [ ! -f "$policy_file" ] || [ ! -r "$policy_file" ]; then
+      echo "PROSPECT_AUTONOMY is not a readable file: $PROSPECT_AUTONOMY" >&2
+      exit 2
+    fi
+    autonomy_policy="$PROSPECT_AUTONOMY"
+  fi
   fragments="$fragments,shared/autonomy.md"
 fi
 
@@ -191,8 +249,15 @@ if [ "$explain" -eq 1 ]; then
   echo "approved: ${approved:-no}"
   echo "scenario-budget: $scenario_budget"
   echo "fragments: $fragments"
+  [ -n "$reopen_entry" ] && echo "reopen: $reopen_entry"
+  [ "$auto" -eq 1 ] && echo "autonomy: $autonomy_policy"
   exit 0
 fi
+
+# sed replacement text: escape the delimiter, backslash, and ampersand.
+sed_esc() { printf '%s' "$1" | sed -e 's/[\\|&]/\\&/g'; }
+reopen_sub="$(sed_esc "$reopen_entry")"
+autonomy_sub="$(sed_esc "$autonomy_policy")"
 
 echo "--- PROMPT ---"
 IFS=',' read -ra FRAGS <<< "$fragments"
@@ -206,7 +271,9 @@ for frag in "${FRAGS[@]}"; do
       -e "s|\${NAME}|$folder|g" \
       -e "s|\${RIGOR}|$rigor|g" \
       -e "s|\${SCENARIO_BUDGET}|$scenario_budget|g" \
-      -e "s|\${WORK_TYPE}|$wtype|g" "$f"
+      -e "s|\${WORK_TYPE}|$wtype|g" \
+      -e "s|\${REOPEN}|$reopen_sub|g" \
+      -e "s|\${AUTONOMY}|$autonomy_sub|g" "$f"
   echo ""
 done
 

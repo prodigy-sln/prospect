@@ -5,7 +5,7 @@
 One task = one coherent scenario group in one area. Split phases only at
 real dependency boundaries (e.g. schema before API). `[P]` = independent of
 other `[P]` tasks in the same phase. Budget: 60 lines — one line per task
-plus its scenario line; status is appended as ` — done`, rationale lives in
+plus its scenario line; a done task is ticked `- [x]`; rationale lives in
 the spec, lessons go to docs/ at completion.
 
 ## Phase 1: [Name]
@@ -24,4 +24,4 @@ the spec, lessons go to docs/ at completion.
 ## Notes
 
 [Deferred observations and follow-ups discovered during implementation.
-Never delete task text; append status markers only.]
+Never delete task text; tick the box, append markers only.]

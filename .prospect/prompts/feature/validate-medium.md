@@ -10,11 +10,11 @@
 3. **Review**: spawn `sdd-reviewer` with spec/tasks/architecture paths, the
    review pack, and the verbatim content of
    `standards/global/validation-calibration.md`. One pass.
-4. **Verdict**: PASS = gate green AND zero Blockers and Majors. Minors and
+4. **Outcome**: PASS = gate green AND zero Blockers and Majors. Minors and
    Info never block at medium — record them; they become tracked issues at
    complete. Write `${FOLDER}/validation-report.md` (≤120 lines): counts,
    scenario verdicts, findings with citations, gate output, metrics summary
-   from `metrics.md`, verdict.
+   from `metrics.md`; last line exactly `verdict: PASS` or `verdict: FAIL`.
 5. **Findings**: fix Blockers/Majors (implement rules apply — test ownership,
    arbitration). Re-run the gate, then re-verify **each fixed finding only**
    — no fresh review sweep. Update the report.

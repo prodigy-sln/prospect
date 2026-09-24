@@ -12,6 +12,10 @@ and the strongest honest argument against it. Mark each BINDING or DEFERRED
 batched round). Unresolved deadlocks from the discussion go to the user,
 never silently settled.
 
+Keep `spec.md` `## Enforcement Checks` in step with the record: it lists the
+checks to build, or reads `none`. It is the signal that routes the
+implement phase; `none` goes straight to validate.
+
 Present the decisions table to the user; after approval, commit
 `docs(spec): record [topic] decisions`, then run
 `bash .prospect/scripts/sdd-next.sh ${NAME}` and continue.

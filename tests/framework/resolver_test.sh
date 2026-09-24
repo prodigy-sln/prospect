@@ -144,6 +144,32 @@ printf 'Verdict: FAILED - two Blockers; re-run to reach PASS
 OUT="$(resolve "$R")"
 echo "$OUT" | grep -q "^phase: validate" || err "a FAILED report resolved to: $(echo "$OUT" | grep '^phase:')"
 
+# verdict_phase <report-body> — the phase a ticked feature resolves to
+verdict_phase() {
+  local r; r="$(make_repo)"
+  make_spec "$r" 2026-01-01-aa feature medium 2026-01-02
+  printf -- '- [x] T01 done\n' > "$r/specs/active/2026-01-01-aa/tasks.md"
+  printf '%s\n' "$1" > "$r/specs/active/2026-01-01-aa/validation-report.md"
+  resolve "$r" 2026-01-01-aa --explain | sed -n 's/^phase: //p'
+}
+
+t "verdict label forms: bold label, bold value, list and heading markup, CRLF"
+for body in 'verdict: PASS' '**Verdict**: PASS' '**Verdict:** PASS' 'Verdict: **PASS**' \
+            '- **Verdict**: PASS — gate green' '## Verdict: PASS' '__Verdict__: PASS' \
+            $'# Report\r\n\r\nverdict: PASS\r' $'Verdict: FAIL\n\nfixed\n\nverdict: PASS' \
+            'Verdict: PASSED' '**PASS**' $'verdict: FAIL\n\n**PASSED**\r'; do
+  [ "$(verdict_phase "$body")" = complete ] || err "not PASS: $(printf '%q' "$body")"
+done
+
+t "verdict negatives: FAIL values, PASS only in prose, per-item verdicts, a later FAIL"
+for body in 'verdict: FAIL (not PASS)' '**Verdict**: FAIL' '**Verdict:** FAILED — rerun to PASS' \
+            'The gate should PASS once fixed.' '- FR-1.1-S1 verdict: PASS' 'verdict: PASSABLE' \
+            $'verdict: PASS\n\npass 2\n\nverdict: FAIL' 'Verdicts: PASS on 3 of 4' \
+            $'verdict: FAIL\n\n**Passed:** 118 tests' $'verdict: FAIL\n\n**Passing**: 3' \
+            $'**PASS**\n\nverdict: FAIL' $'verdict: PASS\n\n**FAIL**' '**PASS** with notes'; do
+  [ "$(verdict_phase "$body")" = validate ] || err "treated as PASS: $(printf '%q' "$body")"
+done
+
 # ── other work types ─────────────────────────────────────────────────────
 
 t "fix: existing spec resolves straight to implement (no tasks phase)"
@@ -178,6 +204,44 @@ printf 'FR-1-S1 -> reproduces the defect
 OUT="$(resolve "$R")"
 echo "$OUT" | grep -q "^phase: implement" || err "low should stay on implement, got: $(echo "$OUT" | grep '^phase:')"
 
+t "low rigor: a dated validation stamp completes; a stale one does not"
+for stamp in '## Validation' '## Validation — 2026-01-03 gate green' '## Validation (2026-01-03)'; do
+  R="$(make_repo)"
+  make_spec "$R" 2026-01-01-aa fix low 2026-01-02
+  printf '\n%s\n' "$stamp" >> "$R/specs/active/2026-01-01-aa/spec.md"
+  OUT="$(resolve "$R" 2026-01-01-aa --explain)"
+  echo "$OUT" | grep -q "^phase: complete" || err "'$stamp' resolved to: $(echo "$OUT" | grep '^phase:')"
+done
+R="$(make_repo)"
+make_spec "$R" 2026-01-01-aa feature low 2026-01-02
+printf '\n## Validation (stale R1) — 2026-01-03\n## Validations elsewhere\n' >> "$R/specs/active/2026-01-01-aa/spec.md"
+OUT="$(resolve "$R" 2026-01-01-aa --explain)"
+echo "$OUT" | grep -q "^phase: implement" || err "stale stamp resolved to: $(echo "$OUT" | grep '^phase:')"
+
+t "docs and chore accept dated stamps"
+R="$(make_repo)"
+make_spec "$R" 2026-01-01-aa docs low 2026-01-02
+printf '\n## Published — 2026-01-03, docs/api.md\n' >> "$R/specs/active/2026-01-01-aa/spec.md"
+resolve "$R" 2026-01-01-aa --explain | grep -q "^phase: complete" || err "dated Published not honored"
+R="$(make_repo)"
+make_spec "$R" 2026-01-01-aa chore low 2026-01-02
+printf '\n## Done 2026-01-03 gate green\n' >> "$R/specs/active/2026-01-01-aa/spec.md"
+resolve "$R" 2026-01-01-aa --explain | grep -q "^phase: complete" || err "dated Done not honored"
+
+t "stamp forms with or without a space before the separator; longer titles are not stamps"
+for row in 'chore|## Done: 2026-09-24|complete' 'chore|## Done—2026|complete' \
+           'chore|## Done–2026|complete' 'chore|## Done(2026-09-24)|complete' \
+           'fix|## Validation: PASS|complete' 'fix|## Validation - 2026-09-24|complete' \
+           'chore|## Done criteria|work' 'chore|## Done.|work' 'chore|## Done-ish|work' \
+           'docs|## Published docs|edit' 'fix|## Validation Plan|implement'; do
+  IFS='|' read -r wt head want <<< "$row"
+  R="$(make_repo)"
+  make_spec "$R" 2026-01-01-aa "$wt" low 2026-01-02
+  printf '\n%s\n' "$head" >> "$R/specs/active/2026-01-01-aa/spec.md"
+  OUT="$(resolve "$R" 2026-01-01-aa --explain)"
+  echo "$OUT" | grep -q "^phase: $want" || err "'$head' ($wt) resolved to: $(echo "$OUT" | grep '^phase:')"
+done
+
 t "docs: resolves to edit"
 R="$(make_repo)"
 make_spec "$R" 2026-01-01-aa docs low 2026-01-02
@@ -195,6 +259,41 @@ R="$(make_repo)"
 make_spec "$R" 2026-01-01-aa decision xhigh 2026-01-02
 OUT="$(resolve "$R")"
 echo "$OUT" | grep -q "^phase: discuss" || err "expected discuss, got: $(echo "$OUT" | grep '^phase:')"
+
+# decision_ready <repo> <checks-body> — decided spec past its discussion
+decision_ready() {
+  make_spec "$1" 2026-01-01-aa decision medium 2026-01-02
+  printf '\n## Enforcement Checks\n\n%s\n\n## Discussion Findings\n\n- agreed\n' "$2" \
+    >> "$1/specs/active/2026-01-01-aa/spec.md"
+  echo '# Decisions' > "$1/specs/active/2026-01-01-aa/decision-record.md"
+}
+
+t "decision: decided with enforcement checks and no tasks resolves to implement"
+R="$(make_repo)"
+decision_ready "$R" "- CHK-1-S1: WHEN a module imports infra THE SYSTEM SHALL fail"
+OUT="$(resolve "$R")"
+echo "$OUT" | grep -q "^phase: implement" || err "expected implement, got: $(echo "$OUT" | grep '^phase:')"
+echo "$OUT" | grep -q "enforcement checks" || err "implement did not compose implement-checks"
+
+t "decision: unchecked check tasks stay on implement"
+R="$(make_repo)"
+decision_ready "$R" "- CHK-1-S1: WHEN x THE SYSTEM SHALL y"
+printf -- '- [x] T01 a\n- [ ] T02 b\n' > "$R/specs/active/2026-01-01-aa/tasks.md"
+OUT="$(resolve "$R")"
+echo "$OUT" | grep -q "^phase: implement" || err "expected implement, got: $(echo "$OUT" | grep '^phase:')"
+
+t "decision: all check tasks ticked resolves to validate"
+R="$(make_repo)"
+decision_ready "$R" "- CHK-1-S1: WHEN x THE SYSTEM SHALL y"
+printf -- '- [x] T01 check\n' > "$R/specs/active/2026-01-01-aa/tasks.md"
+OUT="$(resolve "$R")"
+echo "$OUT" | grep -q "^phase: validate" || err "expected validate, got: $(echo "$OUT" | grep '^phase:')"
+
+t "decision: enforcement checks 'none' skips implement"
+R="$(make_repo)"
+decision_ready "$R" "none"
+OUT="$(resolve "$R")"
+echo "$OUT" | grep -q "^phase: validate" || err "expected validate, got: $(echo "$OUT" | grep '^phase:')"
 
 # ── overrides and side effects ───────────────────────────────────────────
 
@@ -225,6 +324,121 @@ OUT="$(resolve "$R" 2026-01-01-aa --auto)"
 echo "$OUT" | grep -q "Unattended operation" || err "autonomy addendum missing under --auto"
 OUT2="$(resolve "$R" 2026-01-01-aa)"
 echo "$OUT2" | grep -q "Unattended operation" && err "autonomy addendum leaked without --auto"
+echo "$OUT" | grep -q "policy in \`.prospect/autonomy.md\`" || err "default policy path not substituted"
+echo "$OUT" | grep -q "^### STOP D<n>" || err "STOP shape missing from the addendum"
+
+t "PROSPECT_AUTONOMY points the addendum at another policy file"
+R="$(make_repo)"
+make_spec "$R" 2026-01-01-aa feature medium 2026-01-02
+OUT="$(PROSPECT_AUTONOMY=.prospect/autonomy-harness.md resolve "$R" 2026-01-01-aa --auto)"
+echo "$OUT" | grep -q "policy in \`.prospect/autonomy-harness.md\`" || err "override path not substituted"
+echo "$OUT" | grep -q 'AUTONOMY}' && err "autonomy placeholder survived"
+OUT="$(PROSPECT_AUTONOMY=.prospect/autonomy-harness.md resolve "$R" 2026-01-01-aa --auto --explain)"
+echo "$OUT" | grep -q "^autonomy: .prospect/autonomy-harness.md" || err "--explain omits the policy"
+
+t "an unreadable PROSPECT_AUTONOMY exits 2 under --auto"
+R="$(make_repo)"
+make_spec "$R" 2026-01-01-aa feature medium 2026-01-02
+PROSPECT_AUTONOMY=missing.md resolve "$R" 2026-01-01-aa --auto >/dev/null
+[ $? -eq 2 ] || err "expected exit 2 for a missing policy file"
+
+t "a relative PROSPECT_AUTONOMY resolves against the repo root, not the cwd"
+R="$(make_repo)"
+make_spec "$R" 2026-01-01-aa feature medium 2026-01-02
+OUT="$(cd "$R/specs" && PROSPECT_AUTONOMY=.prospect/autonomy-harness.md \
+  bash ../.prospect/scripts/sdd-next.sh 2026-01-01-aa --auto 2>&1)"; RC=$?
+[ $RC -eq 0 ] || err "expected exit 0 from a subdirectory, got $RC: $OUT"
+echo "$OUT" | grep -q "policy in \`.prospect/autonomy-harness.md\`" || err "relative policy not substituted"
+
+# ── review mode ──────────────────────────────────────────────────────────
+
+# complete_repo <review-mode-line> — feature spec ready to complete
+complete_repo() {
+  local r; r="$(make_repo)"
+  make_spec "$r" 2026-01-01-aa feature medium 2026-01-02
+  printf -- '- [x] T01 done\n' > "$r/specs/active/2026-01-01-aa/tasks.md"
+  printf 'Verdict: PASS\n' > "$r/specs/active/2026-01-01-aa/validation-report.md"
+  [ -n "$1" ] && printf -- '- %s\n' "$1" > "$r/CLAUDE.md"
+  echo "$r"
+}
+
+t "complete defaults to the team review mode"
+R="$(complete_repo "")"
+OUT="$(resolve "$R" 2026-01-01-aa --explain)"
+echo "$OUT" | grep -q "shared/complete-team.md" || err "expected team: $(echo "$OUT" | grep '^fragments:')"
+
+t "review-mode: harness in CLAUDE.md selects the harness handoff"
+R="$(complete_repo '`review-mode: harness`')"
+OUT="$(resolve "$R" 2026-01-01-aa)"
+echo "$OUT" | grep -q "^## Review mode: harness" || err "harness fragment not composed"
+
+t "PROSPECT_REVIEW_MODE wins over CLAUDE.md"
+R="$(complete_repo '`review-mode: solo`')"
+OUT="$(PROSPECT_REVIEW_MODE=harness resolve "$R" 2026-01-01-aa --explain)"
+echo "$OUT" | grep -q "shared/complete-harness.md" || err "env ignored: $(echo "$OUT" | grep '^fragments:')"
+echo "$OUT" | grep -q "complete-solo" && err "CLAUDE.md setting leaked past the env"
+PROSPECT_REVIEW_MODE=bogus resolve "$R" 2026-01-01-aa --explain >/dev/null
+[ $? -eq 3 ] || err "an unknown review mode must exit 3"
+
+# ── reopen ledger ────────────────────────────────────────────────────────
+
+# reopened_repo — tasks pending, specify reopened (closed R1, open R2 + R3)
+reopened_repo() {
+  local r; r="$(make_repo)"
+  make_spec "$r" 2026-01-01-aa feature medium 2026-01-02
+  printf -- '- [ ] T01 a — reopened R2\n      Scenarios: FR-1.1-S1\n' > "$r/specs/active/2026-01-01-aa/tasks.md"
+  cat > "$r/specs/active/2026-01-01-aa/reopen.md" <<'EOF'
+# Reopen Ledger
+
+- [closed] R1 · phase: implement · scope: all · reason: old · at: 2026-01-01T00:00:00Z
+- [open] R2 · phase: specify · scope: FR-1.1-S1 · reason: a|b & c · at: 2026-01-02T00:00:00Z
+- [open] R3 · phase: tasks · scope: FR-1.1-S1 · reason: a|b & c · at: 2026-01-02T00:00:00Z
+EOF
+  echo "$r"
+}
+
+t "the first open reopen entry wins over the disk-state probes"
+R="$(reopened_repo)"
+OUT="$(resolve "$R")"
+echo "$OUT" | grep -q "^phase: specify" || err "expected specify, got: $(echo "$OUT" | grep '^phase:')"
+echo "$OUT" | grep -q "^## Reopened phase" || err "reopen fragment not appended"
+echo "$OUT" | grep -qF -- '- [open] R2 · phase: specify · scope: FR-1.1-S1 · reason: a|b & c' \
+  || err "entry not substituted verbatim"
+echo "$OUT" | grep -q 'REOPEN}' && err "reopen placeholder survived"
+OUT="$(resolve "$R" 2026-01-01-aa --explain)"
+echo "$OUT" | grep -q "^reopen: - \[open\] R2" || err "--explain omits the reopen entry"
+
+t "later open entries run once earlier ones close, then the probes resume"
+R="$(reopened_repo)"
+sed -i 's/\[open\] R2/[closed] R2/' "$R/specs/active/2026-01-01-aa/reopen.md"
+OUT="$(resolve "$R" 2026-01-01-aa --explain)"
+echo "$OUT" | grep -q "^phase: tasks" || err "expected tasks, got: $(echo "$OUT" | grep '^phase:')"
+sed -i 's/\[open\] R3/[closed] R3/' "$R/specs/active/2026-01-01-aa/reopen.md"
+OUT="$(resolve "$R" 2026-01-01-aa --explain)"
+echo "$OUT" | grep -q "^phase: implement" || err "expected implement, got: $(echo "$OUT" | grep '^phase:')"
+echo "$OUT" | grep -q "reopen" && err "closed ledger still composes the reopen fragment"
+
+t "the entry's own phase field wins over a look-alike in its reason"
+R="$(make_repo)"
+make_spec "$R" 2026-01-01-aa feature medium 2026-01-02
+printf -- '- [open] R1 · phase: tasks · scope: all · reason: x · phase: complete · y · at: 2026-01-01T00:00:00Z\n' \
+  > "$R/specs/active/2026-01-01-aa/reopen.md"
+OUT="$(resolve "$R" 2026-01-01-aa --explain)"
+echo "$OUT" | grep -q "^phase: tasks" || err "reason hijacked the phase: $(echo "$OUT" | grep '^phase:')"
+
+t "--phase override wins over the reopen ledger"
+R="$(reopened_repo)"
+OUT="$(resolve "$R" 2026-01-01-aa --phase validate --explain)"
+echo "$OUT" | grep -q "^phase: validate" || err "override ignored: $(echo "$OUT" | grep '^phase:')"
+echo "$OUT" | grep -q "shared/reopen.md" && err "override still composes the reopen fragment"
+
+t "a reopen entry for a phase without a matrix cell exits 3"
+R="$(make_repo)"
+make_spec "$R" 2026-01-01-aa feature low 2026-01-02
+printf -- '- [open] R1 · phase: tasks · scope: all · reason: x · at: 2026-01-01T00:00:00Z\n' \
+  > "$R/specs/active/2026-01-01-aa/reopen.md"
+resolve "$R" >/dev/null
+[ $? -eq 3 ] || err "expected exit 3"
 
 # ── scenario budget ───────────────────────────────────────────────────────
 

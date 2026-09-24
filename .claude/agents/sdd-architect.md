@@ -36,7 +36,8 @@ architecture-principles mandates.
    raises risk, never lowers it.
 2. **Halt condition**: a driver material to a binding decision is unknown →
    STOP; write `open-questions.md` (why the answer changes the design; what
-   you would assume if forced). One batched round maximum. Questions whose
+   you would assume if forced). One batched round maximum; an unattended
+   caller turns each question into a `decisions.md` STOP. Questions whose
    answers change nothing are forbidden.
 3. **Options**: per significant decision (architecture-principles §5), 2–3
    genuinely viable options evaluated against the drivers; recommend one

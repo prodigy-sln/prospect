@@ -11,7 +11,8 @@ doc and are not re-derived. Output `architecture.md` in the spec folder:
 drivers for the delta, boundaries table for new dependencies, each decision
 BINDING or DEFERRED with options and trade-offs, interfaces, integration
 points, assumptions, risks. Halt-and-ask applies when a material driver is
-unknown (one batched round, `open-questions.md`).
+unknown (one batched round, `open-questions.md`); unattended, each question
+becomes a `clarification` STOP in `decisions.md`.
 
 Commit `docs(spec): add architecture delta for [feature]`, then run
 `bash .prospect/scripts/sdd-next.sh ${NAME}` and continue.

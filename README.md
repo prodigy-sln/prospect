@@ -102,6 +102,20 @@ The pillars:
   solo` lets single-maintainer projects merge directly after a green
   validation.
 
+## Driving Prospect from an orchestrator
+
+Everything `/sdd-auto` does is scriptable. `sdd-new.sh <name> --work-type
+<t> --rigor <r>` creates the spec folder without a conversation;
+`sdd-next.sh --auto` emits each phase prompt, with `PROSPECT_AUTONOMY`
+naming the policy file (`.prospect/autonomy-harness.md` ships for this) and
+`PROSPECT_REVIEW_MODE=harness` ending the complete phase at a committed
+branch for the orchestrator to merge. A STOP lands in `decisions.md` as a
+parseable `### STOP D<n>` block; answering it (`status: resolved` +
+`answer:`) lets the next run proceed. `sdd-reopen.sh <folder> <phase>
+--scope <ids> --reason "…"` rewinds a finished phase: it queues entries in
+the folder's `reopen.md`, which the resolver runs first, and invalidates
+only the tasks, test mappings, and verdict the scope touches.
+
 ## What's Included
 
 ```
@@ -114,10 +128,12 @@ The pillars:
 └── workflows/
     └── sdd-validate.js  # reviewer fan-out with per-finding verification
 .prospect/             # framework runtime (overwritten on update)
-├── scripts/           # sdd-next.sh resolver · sdd-artifact-lint.sh
+├── scripts/           # sdd-next.sh resolver · sdd-reopen.sh · sdd-new.sh ·
+│                      # sdd-artifact-lint.sh
 ├── prompts/           # matrix.tsv + phase fragments per work-type
 ├── templates/         # spec, mini, decision, fix, tasks, docs-index
-└── autonomy.md        # what /sdd-auto may decide without you
+├── autonomy.md        # what /sdd-auto may decide without you
+└── autonomy-harness.md  # policy profile for an external orchestrator
 CLAUDE.md              # project instructions
 standards/global/      # code quality, testing, git, scenarios, calibration
 specs/                 # active/ · REGISTRY.md

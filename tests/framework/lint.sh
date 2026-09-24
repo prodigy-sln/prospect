@@ -38,12 +38,13 @@ while IFS=$'\t' read -r wtype rigors phase fragments; do
   case "$wtype" in \#*|'') continue ;; esac
   total=0
   # The resolver appends fragments the matrix row does not name: the review
-  # mode on every complete phase, and the autonomy addendum under --auto.
-  # Charge the worst case, which is what a phase can actually pay.
+  # mode on every complete phase, the reopen addendum when the ledger has an
+  # open entry, and the autonomy addendum under --auto. Charge the worst
+  # case, which is what a phase can actually pay.
   case "$phase" in
-    complete) fragments="$fragments,shared/complete-team.md,shared/autonomy.md" ;;
-    *) fragments="$fragments,shared/autonomy.md" ;;
+    complete) fragments="$fragments,shared/complete-team.md" ;;
   esac
+  fragments="$fragments,shared/reopen.md,shared/autonomy.md"
   IFS=',' read -ra FR <<< "$fragments"
   for frag in "${FR[@]}"; do
     f=".prospect/prompts/$frag"
@@ -62,7 +63,7 @@ for f in .claude/skills/*/SKILL.md .claude/agents/*.md .prospect/prompts/*/*.md 
          .prospect/templates/*.md standards/global/*.md; do
   [ -f "$f" ] && TOTAL=$((TOTAL + $(words "$f")))
 done
-[ "$TOTAL" -le 14500 ] || err "total prompt surface: $TOTAL words (budget 14500)"
+[ "$TOTAL" -le 14800 ] || err "total prompt surface: $TOTAL words (budget 14800)"
 echo "total prompt surface: $TOTAL words"
 
 # --- Forbidden references (removed tools/components, stale paths) -------
@@ -71,7 +72,7 @@ FORBIDDEN='TeamCreate|TeamDelete|sdd-test-writer|sdd-implementer|sdd-refactorer|
 HISTORY='previously|no longer|changed from|used to be|instead of the old|replaces the'
 
 for f in .claude/skills/*/SKILL.md .claude/agents/*.md .claude/workflows/*.js \
-         .prospect/prompts/*/*.md .prospect/templates/*.md .prospect/autonomy.md \
+         .prospect/prompts/*/*.md .prospect/templates/*.md .prospect/autonomy*.md \
          standards/global/*.md product/*.template.md CLAUDE.md README.md; do
   [ -f "$f" ] || continue
   if grep -nEw "$FORBIDDEN" "$f" >/dev/null 2>&1; then

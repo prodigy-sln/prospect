@@ -9,7 +9,7 @@ without a user stop — the spec approval covered this breakdown.
   independent of other `[P]` tasks in the same phase.
 - **Budget: 60 lines.** Task entries are one line plus a scenario line —
   design rationale lives in the spec, lessons go to `docs/` at completion,
-  status is appended as ` — done` markers, never as prose.
+  a done task is ticked `- [x]`, never marked with prose.
 
 Commit `docs(spec): add task breakdown for [feature]`. Report phases, task
 count, and scenario assignment confirmation, then state: safe to `/clear`;
