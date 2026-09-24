@@ -128,7 +128,10 @@ else
       if [ -z "$approved" ]; then phase=specify
       elif [ "$bucket" != low ] && ! has_discussion spec.md; then phase=discuss
       elif ! has_file decision-record.md; then phase=decide
-      elif has_unchecked_tasks; then phase=implement
+      # Enforcement checks are the only tested deliverable; implement-checks
+      # writes tasks.md, so a missing file means that phase has not run.
+      elif has_section_content spec.md "Enforcement Checks" \
+           && { ! has_file tasks.md || has_unchecked_tasks; }; then phase=implement
       elif validation_pass; then phase=complete
       else phase=validate
       fi

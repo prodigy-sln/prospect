@@ -196,6 +196,41 @@ make_spec "$R" 2026-01-01-aa decision xhigh 2026-01-02
 OUT="$(resolve "$R")"
 echo "$OUT" | grep -q "^phase: discuss" || err "expected discuss, got: $(echo "$OUT" | grep '^phase:')"
 
+# decision_ready <repo> <checks-body> — decided spec past its discussion
+decision_ready() {
+  make_spec "$1" 2026-01-01-aa decision medium 2026-01-02
+  printf '\n## Enforcement Checks\n\n%s\n\n## Discussion Findings\n\n- agreed\n' "$2" \
+    >> "$1/specs/active/2026-01-01-aa/spec.md"
+  echo '# Decisions' > "$1/specs/active/2026-01-01-aa/decision-record.md"
+}
+
+t "decision: decided with enforcement checks and no tasks resolves to implement"
+R="$(make_repo)"
+decision_ready "$R" "- CHK-1-S1: WHEN a module imports infra THE SYSTEM SHALL fail"
+OUT="$(resolve "$R")"
+echo "$OUT" | grep -q "^phase: implement" || err "expected implement, got: $(echo "$OUT" | grep '^phase:')"
+echo "$OUT" | grep -q "enforcement checks" || err "implement did not compose implement-checks"
+
+t "decision: unchecked check tasks stay on implement"
+R="$(make_repo)"
+decision_ready "$R" "- CHK-1-S1: WHEN x THE SYSTEM SHALL y"
+printf -- '- [x] T01 a\n- [ ] T02 b\n' > "$R/specs/active/2026-01-01-aa/tasks.md"
+OUT="$(resolve "$R")"
+echo "$OUT" | grep -q "^phase: implement" || err "expected implement, got: $(echo "$OUT" | grep '^phase:')"
+
+t "decision: all check tasks ticked resolves to validate"
+R="$(make_repo)"
+decision_ready "$R" "- CHK-1-S1: WHEN x THE SYSTEM SHALL y"
+printf -- '- [x] T01 check\n' > "$R/specs/active/2026-01-01-aa/tasks.md"
+OUT="$(resolve "$R")"
+echo "$OUT" | grep -q "^phase: validate" || err "expected validate, got: $(echo "$OUT" | grep '^phase:')"
+
+t "decision: enforcement checks 'none' skips implement"
+R="$(make_repo)"
+decision_ready "$R" "none"
+OUT="$(resolve "$R")"
+echo "$OUT" | grep -q "^phase: validate" || err "expected validate, got: $(echo "$OUT" | grep '^phase:')"
+
 # ── overrides and side effects ───────────────────────────────────────────
 
 t "--phase override wins over detection"
