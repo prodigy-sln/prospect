@@ -10,8 +10,8 @@
 #   ids: comma-separated scenario ids (FR-1.2-S1) or requirement prefixes
 #   (FR-1.2), each present in spec.md; no or empty scope reopens the whole
 #   phase. An identical open entry already queued is not queued again.
-# Exit codes: 0 reopened or already queued · 1 rewrite failed ·
-#             2 usage, folder missing, or unknown scope id ·
+# Exit codes: 0 reopened or already queued · 1 write failed (nothing queued) ·
+#             2 usage, folder missing, or bad or unknown scope id ·
 #             3 unknown type/phase, or complete
 set -u
 
@@ -58,8 +58,10 @@ has_cell() { # has_cell <phase> — the matrix composes this phase for the spec
 }
 has_cell "$phase" || { echo "no matrix entry for $wtype/$rigor/$phase" >&2; exit 3; }
 
-# Scope ids: comma/space separated. Reasons stay one line, and lose the
-# ledger's field separator and backticks so the entry parses and quotes.
+# Scope ids: comma/space separated, id-shaped (FR-1.2, FR-1.2-S1, S1).
+# Reasons stay one line, and lose the ledger's field separator and
+# backticks so the entry parses and quotes.
+set -f
 scope="$(printf '%s' "$scope" | tr ',\r\n\t' '    ' | tr -s ' ' | sed 's/^ //; s/ $//')"
 scope_label="${scope:-all}"; scope_label="${scope_label// /,}"
 reason="$(printf '%s' "$reason" | tr '\r\n\t`' "   '" | sed 's/·/-/g')"
@@ -82,35 +84,19 @@ AWK_SCOPE='
   }
   BEGIN { m = split(scope, a, " "); for (i = 1; i <= m; i++) S[a[i]] = 1 }'
 
-# Every scope id must name something in the spec; a typo would otherwise
-# invalidate nothing and still discard the verdict.
+# Every scope id must be id-shaped and name something in the spec; a typo
+# would otherwise invalidate nothing and still discard the verdict.
 for id in $scope; do
+  printf '%s' "$id" | grep -qE '^[A-Z]+-?[0-9]+(\.[0-9]+)*(-[A-Z]+[0-9]+)*$' \
+    || { echo "not a scenario or requirement id: $id" >&2; exit 2; }
   awk -v scope="$id" "$AWK_SCOPE"' line_hits($0) { f = 1; exit } END { exit !f }' "$SPEC" \
     || { echo "scope id not found in spec.md: $id" >&2; exit 2; }
 done
 
-# rewrite <file> <awk-program> [awk-args...] — run the program over the file
-# with CR stripped per line (CR[NR] records it; out() restores it), write
-# the result back in place (keeping mode), and fail loudly on an awk error.
-AWK_IO='
-  { cr = sub(/\r$/, "") }
-  function out(s) { printf "%s%s\n", s, (cr ? "\r" : "") }'
-rewrite() {
-  local file="$1" prog="$2" tmp; shift 2
-  tmp="$(mktemp)"
-  # BINMODE=3 stops Windows gawk from dropping CRs; other awks ignore it.
-  if ! awk -v BINMODE=3 "$@" "$AWK_IO$prog" "$file" > "$tmp"; then
-    rm -f "$tmp"; echo "failed to rewrite $file" >&2; exit 1
-  fi
-  cat "$tmp" > "$file"; rm -f "$tmp"
-}
-
 LEDGER="$DIR/reopen.md"
-if [ ! -f "$LEDGER" ]; then
-  printf '# Reopen Ledger\n\nOpen entries run first, top to bottom; each run closes its own entry.\n\n' > "$LEDGER"
-fi
 queued() { # queued <phase> — an open entry with this phase and scope exists
-  tr -d '\r' < "$LEDGER" | grep '^- \[open\] ' | grep -qF -- " · phase: $1 · scope: $scope_label · "
+  [ -f "$LEDGER" ] && tr -d '\r' < "$LEDGER" | grep '^- \[open\] ' \
+    | grep -qF -- " · phase: $1 · scope: $scope_label · "
 }
 if queued "$phase"; then
   echo "already queued: $phase · scope: $scope_label"
@@ -126,28 +112,37 @@ case "$wtype/$phase" in
   decision/specify) add_stage decide decision-record.md ;;
 esac
 
-n=$(grep -oE '^- \[(open|closed)\] R[0-9]+' "$LEDGER" | sed 's/.*R//' | sort -n | tail -1)
+n=$(grep -oE '^- \[(open|closed)\] R[0-9]+' "$LEDGER" 2>/dev/null | sed 's/.*R//' | sort -n | tail -1)
 n=$(( ${n:-0} + 1 ))
 primary="R$n"
-at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-for s in $stages; do
-  line="- [open] R$n · phase: $s · scope: $scope_label · reason: $reason · at: $at"
-  echo "$line" >> "$LEDGER"
-  echo "$line"
-  n=$((n + 1))
-done
 
-# The verdict no longer holds; the report stays for reference.
-if [ -f "$DIR/validation-report.md" ]; then
-  mkdir -p "$DIR/history"
-  mv "$DIR/validation-report.md" "$DIR/history/validation-report.$primary.md"
-  echo "validation report → history/validation-report.$primary.md"
-fi
+# ── Stage every rewrite, then apply ──────────────────────────────────────
+# Nothing is written until every rewrite is computed and every target is
+# writable; the ledger is appended last, so a failure leaves nothing
+# queued and a retry redoes the (idempotent) invalidation.
+fail() { echo "sdd-reopen: $*" >&2; exit 1; }
+STAGE="$(mktemp -d)" || fail "cannot create a temp dir"
+trap 'rm -rf "$STAGE"' EXIT
+staged=()
+
+# stage <file> <awk-program> [awk-args...] — CR stripped per line (out()
+# restores it); the result waits in $STAGE until apply.
+AWK_IO='
+  { cr = sub(/\r$/, "") }
+  function out(s) { printf "%s%s\n", s, (cr ? "\r" : "") }'
+stage() {
+  local file="$1" prog="$2"; shift 2
+  [ -w "$file" ] || fail "not writable: $file"
+  # BINMODE=3 stops Windows gawk from dropping CRs; other awks ignore it.
+  awk -v BINMODE=3 "$@" "$AWK_IO$prog" "$file" > "$STAGE/${#staged[@]}" \
+    || fail "failed to rewrite $file"
+  staged+=("$file")
+}
 
 # Stamped completion headings (low-rigor validation, docs, chore) go stale
-# the same way; the resolver ignores headings marked stale.
-rewrite "$SPEC" '
-  /^## (Validation|Published|Done)([[:space:]]|$)/ && !/\(stale / {
+# the same way. The stamp pattern matches has_stamp in sdd-next.sh.
+stage "$SPEC" '
+  /^## (Validation|Published|Done)([[:space:]]*$|[[:space:]]+(—|–|-|:|\(|[0-9]))/ && !/\(stale / {
     h = $0; sub(/^## [A-Za-z]+/, "& (stale " tag ")", h); out(h); next
   }
   { out($0) }' -v tag="$primary"
@@ -157,7 +152,7 @@ rewrite "$SPEC" '
 TASKS="$DIR/tasks.md"
 if [ -f "$TASKS" ] && [ "$phase" != validate ] \
    && { [ -n "$scope" ] || [ "$phase" = implement ]; }; then
-  rewrite "$TASKS" "$AWK_SCOPE"'
+  stage "$TASKS" "$AWK_SCOPE"'
     { L[NR] = $0; C[NR] = cr }
     END {
       for (i = 1; i <= NR; i++) {
@@ -176,13 +171,48 @@ if [ -f "$TASKS" ] && [ "$phase" != validate ] \
     }' -v scope="$scope" -v all="$([ -z "$scope" ] && echo 1 || echo 0)" -v tag="$primary"
 fi
 
-# test-map.md: mark mappings of scoped scenarios stale.
+# test-map.md: mark mappings of scoped scenarios stale (once per tag).
 MAP="$DIR/test-map.md"
 if [ -f "$MAP" ] && [ -n "$scope" ]; then
-  rewrite "$MAP" "$AWK_SCOPE"'
-    /→|->/ && line_hits($0) { $0 = $0 " (stale " tag ")"; c++ }
+  stage "$MAP" "$AWK_SCOPE"'
+    /→|->/ && line_hits($0) && index($0, "(stale " tag ")") == 0 { $0 = $0 " (stale " tag ")"; c++ }
     { out($0) }
     END { print "stale test-map lines: " c + 0 > "/dev/stderr" }' -v scope="$scope" -v tag="$primary"
 fi
+
+REPORT="$DIR/validation-report.md"
+if [ -f "$REPORT" ]; then
+  mkdir -p "$DIR/history" && [ -w "$DIR/history" ] || fail "cannot write $DIR/history"
+fi
+if [ -f "$LEDGER" ]; then
+  [ -w "$LEDGER" ] || fail "not writable: $LEDGER"
+else
+  [ -w "$DIR" ] || fail "cannot create $LEDGER"
+fi
+
+# Apply: write back in place (keeps mode), move the verdict, queue last.
+i=0
+for f in "${staged[@]}"; do
+  cat "$STAGE/$i" > "$f" || fail "failed to write $f"
+  i=$((i + 1))
+done
+
+# The verdict no longer holds; the report stays for reference.
+if [ -f "$REPORT" ]; then
+  mv "$REPORT" "$DIR/history/validation-report.$primary.md" || fail "failed to move $REPORT"
+  echo "validation report → history/validation-report.$primary.md"
+fi
+
+at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+entries=""
+for s in $stages; do
+  entries="$entries- [open] R$n · phase: $s · scope: $scope_label · reason: $reason · at: $at"$'\n'
+  n=$((n + 1))
+done
+{
+  [ -f "$LEDGER" ] || printf '# Reopen Ledger\n\nOpen entries run first, top to bottom; each run closes its own entry.\n\n'
+  printf '%s' "$entries"
+} >> "$LEDGER" || fail "failed to append to $LEDGER"
+printf '%s' "$entries"
 
 exit 0

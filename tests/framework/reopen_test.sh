@@ -172,7 +172,50 @@ reopen "$R" "$F" implement --reason x >/dev/null
 grep -q '^## Validation (stale R1) — 2026-01-03 gate green$' "$R/specs/active/$F/spec.md" \
   || err "dated stamp: $(grep '^## Val' "$R/specs/active/$F/spec.md")"
 
+t "ordinary headings that start with a stamp word are left alone"
+R="$(make_repo)"; make_spec "$R" feature medium
+printf '\n## Validation Plan\n\n## Done criteria\n\n## Published docs\n' >> "$R/specs/active/$F/spec.md"
+reopen "$R" "$F" specify --reason x >/dev/null
+S="$R/specs/active/$F/spec.md"
+grep -q 'stale' "$S" && err "ordinary heading marked stale: $(grep stale "$S")"
+for h in '## Validation Plan' '## Done criteria' '## Published docs'; do
+  grep -qx "$h" "$S" || err "heading changed: $h"
+done
+
+# ── write failures ───────────────────────────────────────────────────────
+
+t "an unwritable target exits 1 and leaves nothing queued; a retry completes"
+R="$(make_repo)"; make_spec "$R" feature medium; seed_tasks "$R"
+printf 'FR-1.2-S1 -> b\n' > "$R/specs/active/$F/test-map.md"
+echo 'Verdict: PASS' > "$R/specs/active/$F/validation-report.md"
+chmod a-w "$R/specs/active/$F/tasks.md"
+if [ -w "$R/specs/active/$F/tasks.md" ]; then
+  echo "    (skipped: running as a user who can write read-only files)"
+else
+  reopen "$R" "$F" implement --scope FR-1.2-S1 --reason x >/dev/null
+  [ $? -eq 1 ] || err "expected exit 1 for a read-only tasks.md"
+  [ -f "$R/specs/active/$F/reopen.md" ] && err "ledger written despite the failure"
+  [ -f "$R/specs/active/$F/validation-report.md" ] || err "report moved despite the failure"
+  grep -q 'stale' "$R/specs/active/$F/test-map.md" && err "test-map rewritten despite the failure"
+  chmod u+w "$R/specs/active/$F/tasks.md"
+  OUT="$(reopen "$R" "$F" implement --scope FR-1.2-S1 --reason x)"; RC=$?
+  [ $RC -eq 0 ] || err "retry exited $RC: $OUT"
+  echo "$OUT" | grep -q 'already queued' && err "retry was treated as a duplicate"
+  grep -q '^- \[ \] T02 .* — reopened R1$' "$R/specs/active/$F/tasks.md" || err "retry did not untick T02"
+  [ "$(grep -c 'stale R1' "$R/specs/active/$F/test-map.md")" -eq 1 ] || err "test-map marked twice"
+fi
+
 # ── scope validation ─────────────────────────────────────────────────────
+
+t "a scope that is not id-shaped exits 2, and globs are not expanded"
+R="$(make_repo)"; make_spec "$R" feature medium; seed_tasks "$R"
+reopen "$R" "$F" implement --scope a --reason x >/dev/null
+[ $? -eq 2 ] || err "prose word 'a' accepted as a scope id"
+touch "$R/FR-1.2-S1"
+OUT="$(cd "$R" && bash .prospect/scripts/sdd-reopen.sh "$F" implement --scope 'FR-*' --reason x 2>&1)"; RC=$?
+[ $RC -eq 2 ] || err "glob scope exited $RC: $OUT"
+echo "$OUT" | grep -q 'FR-\*' || err "glob was expanded: $OUT"
+[ -f "$R/specs/active/$F/reopen.md" ] && err "ledger written for a bad scope"
 
 t "a scope id absent from the spec exits 2 and changes nothing"
 R="$(make_repo)"; make_spec "$R" feature medium; seed_tasks "$R"
