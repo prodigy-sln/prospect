@@ -13,8 +13,8 @@ scenarios or architecture conflicts to the user before continuing.
 
 **GREEN — inline, task by task.** Find the task's tests via `test-map.md`,
 read them, implement the minimum to pass. Run **only that task's tests**
-(the map names them). Commit `feat: implement [task]`; mark the task
-` — done` (append; never rewrite task text).
+(the map names them). Commit `feat: implement [task]`; tick its box `- [x]`
+(never rewrite or delete task text).
 
 Test files belong to the test author. A failing test that looks wrong goes
 to the named author with facts only (test name, assertion diff, scenario ID,
