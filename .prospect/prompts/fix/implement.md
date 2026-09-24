@@ -10,6 +10,5 @@
    Commit `fix: [defect]`.
 3. **Gate**: run `scripts/sdd-gate.*` to exit 0 — the full suite proves no
    collateral breakage. Fix exactly what it reports.
-4. Append `## Validation` to `spec.md` at rigor low (date, gate result).
 
 Then run `bash .prospect/scripts/sdd-next.sh ${NAME}` and continue.

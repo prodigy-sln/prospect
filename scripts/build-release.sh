@@ -39,10 +39,16 @@ STAGE="$WORK_DIR/$ARCHIVE_NAME"
 
 mkdir -p "$STAGE"
 
-# .claude/ — all agents, skills, and workflows
-if [[ -d "$REPO_ROOT/.claude" ]]; then
-  cp -r "$REPO_ROOT/.claude" "$STAGE/.claude"
-fi
+# .claude/ — agents, skills, and workflows only. Staging the whole directory
+# would sweep local Claude Code state (settings.local.json and friends) into
+# the artifact, where the installer's default classification writes it over
+# the target repository's own.
+for sub in agents skills workflows; do
+  if [[ -d "$REPO_ROOT/.claude/$sub" ]]; then
+    mkdir -p "$STAGE/.claude"
+    cp -r "$REPO_ROOT/.claude/$sub" "$STAGE/.claude/$sub"
+  fi
+done
 
 # .prospect/ — framework runtime: resolver, prompts, templates, policy
 if [[ -d "$REPO_ROOT/.prospect" ]]; then

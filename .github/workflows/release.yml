@@ -20,25 +20,28 @@ jobs:
         with:
           fetch-depth: 0   # full history for auto-generated release notes
 
+      - name: Validate tag format
+        # install.sh only accepts vX.Y.Z; a tag it would refuse must not
+        # become a release, and a prerelease tag must not become "latest".
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          printf '%s' "$TAG" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$' \
+            || { echo "Tag $TAG is not vX.Y.Z — install.sh would refuse it" >&2; exit 1; }
+
       - name: Framework lint
         # word budgets, forbidden references, frontmatter, path existence
         run: bash tests/framework/lint.sh
 
-      - name: Resolver and artifact lint tests
-        # phase resolution, matrix completeness, prompt composition,
-        # artifact budget enforcement
-        run: |
-          bash tests/framework/resolver_test.sh
-          bash tests/framework/artifact_lint_test.sh
+      - name: Bash suite
+        # every tests/**/*_test.sh — the same set CI runs on the way in
+        run: bash tests/run.sh
 
-      - name: Installer tests
-        # categorisation, manifest baseline, conflict handling, artifact layout
+      - name: PowerShell suite
+        shell: pwsh
         run: |
-          bash tests/bash/manifest_test.sh
-          bash tests/bash/install_test.sh
-          bash tests/release/artifact_test.sh
-          bash tests/e2e/fresh_install_test.sh
-          bash tests/e2e/update_conflicts_test.sh
+          ./tests/pwsh/args_test.ps1
+          ./tests/pwsh/install_test.ps1
 
       - name: Build release artifact
         # FR-8.2: produce .tar.gz and .zip containing all distributable files

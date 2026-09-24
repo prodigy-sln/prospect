@@ -24,7 +24,8 @@ decision	low|medium|high|xhigh|max	validate	shared/preamble.md,decision/validate
 decision	low|medium|high|xhigh|max	complete	shared/preamble.md,decision/complete.md
 fix	low|medium	specify	shared/preamble.md,fix/specify.md
 fix	high|xhigh|max	specify	shared/preamble.md,fix/specify.md,fix/rca.md
-fix	low|medium|high|xhigh|max	implement	shared/preamble.md,fix/implement.md
+fix	low	implement	shared/preamble.md,fix/implement.md,fix/close-low.md
+fix	medium|high|xhigh|max	implement	shared/preamble.md,fix/implement.md
 fix	low	validate	shared/preamble.md,feature/validate-gate.md
 fix	medium|high|xhigh|max	validate	shared/preamble.md,fix/validate.md
 fix	low|medium|high|xhigh|max	complete	shared/preamble.md,shared/complete.md
