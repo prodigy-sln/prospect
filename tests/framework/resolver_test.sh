@@ -202,9 +202,13 @@ make_spec "$R" 2026-01-01-aa chore low 2026-01-02
 printf '\n## Done 2026-01-03 gate green\n' >> "$R/specs/active/2026-01-01-aa/spec.md"
 resolve "$R" 2026-01-01-aa --explain | grep -q "^phase: complete" || err "dated Done not honored"
 
-t "ordinary headings that start with a stamp word are not stamps"
-for pair in 'chore:## Done criteria:work' 'docs:## Published docs:edit' 'fix:## Validation Plan:implement'; do
-  wt="${pair%%:*}"; rest="${pair#*:}"; head="${rest%:*}"; want="${rest##*:}"
+t "stamp forms with or without a space before the separator; longer titles are not stamps"
+for row in 'chore|## Done: 2026-09-24|complete' 'chore|## Done—2026|complete' \
+           'chore|## Done–2026|complete' 'chore|## Done(2026-09-24)|complete' \
+           'fix|## Validation: PASS|complete' 'fix|## Validation - 2026-09-24|complete' \
+           'chore|## Done criteria|work' 'chore|## Done.|work' 'chore|## Done-ish|work' \
+           'docs|## Published docs|edit' 'fix|## Validation Plan|implement'; do
+  IFS='|' read -r wt head want <<< "$row"
   R="$(make_repo)"
   make_spec "$R" 2026-01-01-aa "$wt" low 2026-01-02
   printf '\n%s\n' "$head" >> "$R/specs/active/2026-01-01-aa/spec.md"

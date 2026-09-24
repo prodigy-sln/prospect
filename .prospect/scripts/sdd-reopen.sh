@@ -142,7 +142,7 @@ stage() {
 # Stamped completion headings (low-rigor validation, docs, chore) go stale
 # the same way. The stamp pattern matches has_stamp in sdd-next.sh.
 stage "$SPEC" '
-  /^## (Validation|Published|Done)([[:space:]]*$|[[:space:]]+(—|–|-|:|\(|[0-9]))/ && !/\(stale / {
+  /^## (Validation|Published|Done)([[:space:]]*$|[[:space:]]*(—|–|:|\()|[[:space:]]+(-|[0-9]))/ && !/\(stale / {
     h = $0; sub(/^## [A-Za-z]+/, "& (stale " tag ")", h); out(h); next
   }
   { out($0) }' -v tag="$primary"

@@ -12,5 +12,4 @@ task stays as it is. Never delete an artifact or remove `approved:`.
 further task it changes the same way (` — reopened R<n>`).
 
 When done, change that entry's `- [open]` to `- [closed]` and commit the
-spec folder with the phase's usual commit, suffixed `(R<n>)`. The next
-open entry, or the normal pipeline, runs on the next invocation.
+spec folder with the phase's usual commit, suffixed `(R<n>)`.

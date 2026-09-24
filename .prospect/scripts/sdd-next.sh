@@ -113,7 +113,7 @@ has_discussion() { grep -q '^## Discussion Findings' "$DIR/$1" 2>/dev/null; }
 # ("## Done criteria"). sdd-reopen matches the same pattern and marks the
 # heading "(stale R<n>)", which no longer counts.
 has_stamp() {
-  grep -E "^## $1([[:space:]]*\$|[[:space:]]+(—|–|-|:|\(|[0-9]))" "$SPEC" | grep -qv '(stale '
+  grep -E "^## $1([[:space:]]*\$|[[:space:]]*(—|–|:|\()|[[:space:]]+(-|[0-9]))" "$SPEC" | grep -qv '(stale '
 }
 
 # ── Phase detection ───────────────────────────────────────────────────────

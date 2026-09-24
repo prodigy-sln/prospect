@@ -10,7 +10,7 @@
    Commit `fix: [defect]`.
 3. **Gate**: run `scripts/sdd-gate.*` to exit 0 — the full suite proves no
    collateral breakage. Fix exactly what it reports.
-4. Append to `spec.md`: `## Validation` with the date and gate result.
+4. Append `## Validation — YYYY-MM-DD` to `spec.md`, then the gate result.
    That stamp is this path's verdict — there is no separate validate phase.
 
 Then run `bash .prospect/scripts/sdd-next.sh ${NAME}` and continue.

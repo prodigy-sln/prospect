@@ -10,7 +10,7 @@ scenarios apply; the full gate is the safety net.
    prove themselves by running.
 3. Run `scripts/sdd-gate.*` to exit 0. A behavior-affecting test change is
    evidence of misclassification — stop and tell the user.
-4. Append `## Done` to `spec.md` (date, gate result). Commit with the
-   matching type: `refactor:` / `chore:` / `build:`.
+4. Append `## Done — YYYY-MM-DD` to `spec.md`, then the gate result.
+   Commit with the matching type: `refactor:` / `chore:` / `build:`.
 
 Then run `bash .prospect/scripts/sdd-next.sh ${NAME}` and continue.

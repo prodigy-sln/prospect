@@ -172,6 +172,18 @@ reopen "$R" "$F" implement --reason x >/dev/null
 grep -q '^## Validation (stale R1) — 2026-01-03 gate green$' "$R/specs/active/$F/spec.md" \
   || err "dated stamp: $(grep '^## Val' "$R/specs/active/$F/spec.md")"
 
+t "colon and unspaced stamps go stale too"
+R="$(make_repo)"; make_spec "$R" chore low
+printf '\n## Done: 2026-09-24 gate green\n' >> "$R/specs/active/$F/spec.md"
+reopen "$R" "$F" work --reason x >/dev/null
+grep -qx '## Done (stale R1): 2026-09-24 gate green' "$R/specs/active/$F/spec.md" \
+  || err "colon stamp: $(grep '^## Done' "$R/specs/active/$F/spec.md")"
+R="$(make_repo)"; make_spec "$R" chore low
+printf '\n## Done—2026\n' >> "$R/specs/active/$F/spec.md"
+reopen "$R" "$F" work --reason x >/dev/null
+grep -qx '## Done (stale R1)—2026' "$R/specs/active/$F/spec.md" \
+  || err "unspaced stamp: $(grep '^## Done' "$R/specs/active/$F/spec.md")"
+
 t "ordinary headings that start with a stamp word are left alone"
 R="$(make_repo)"; make_spec "$R" feature medium
 printf '\n## Validation Plan\n\n## Done criteria\n\n## Published docs\n' >> "$R/specs/active/$F/spec.md"
