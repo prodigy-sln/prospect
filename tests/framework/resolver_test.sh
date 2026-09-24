@@ -278,6 +278,36 @@ make_spec "$R" 2026-01-01-aa feature medium 2026-01-02
 PROSPECT_AUTONOMY=missing.md resolve "$R" 2026-01-01-aa --auto >/dev/null
 [ $? -eq 2 ] || err "expected exit 2 for a missing policy file"
 
+# ── review mode ──────────────────────────────────────────────────────────
+
+# complete_repo <review-mode-line> — feature spec ready to complete
+complete_repo() {
+  local r; r="$(make_repo)"
+  make_spec "$r" 2026-01-01-aa feature medium 2026-01-02
+  printf -- '- [x] T01 done\n' > "$r/specs/active/2026-01-01-aa/tasks.md"
+  printf 'Verdict: PASS\n' > "$r/specs/active/2026-01-01-aa/validation-report.md"
+  [ -n "$1" ] && printf -- '- %s\n' "$1" > "$r/CLAUDE.md"
+  echo "$r"
+}
+
+t "complete defaults to the team review mode"
+R="$(complete_repo "")"
+OUT="$(resolve "$R" 2026-01-01-aa --explain)"
+echo "$OUT" | grep -q "shared/complete-team.md" || err "expected team: $(echo "$OUT" | grep '^fragments:')"
+
+t "review-mode: harness in CLAUDE.md selects the harness handoff"
+R="$(complete_repo '`review-mode: harness`')"
+OUT="$(resolve "$R" 2026-01-01-aa)"
+echo "$OUT" | grep -q "^## Review mode: harness" || err "harness fragment not composed"
+
+t "PROSPECT_REVIEW_MODE wins over CLAUDE.md"
+R="$(complete_repo '`review-mode: solo`')"
+OUT="$(PROSPECT_REVIEW_MODE=harness resolve "$R" 2026-01-01-aa --explain)"
+echo "$OUT" | grep -q "shared/complete-harness.md" || err "env ignored: $(echo "$OUT" | grep '^fragments:')"
+echo "$OUT" | grep -q "complete-solo" && err "CLAUDE.md setting leaked past the env"
+PROSPECT_REVIEW_MODE=bogus resolve "$R" 2026-01-01-aa --explain >/dev/null
+[ $? -eq 3 ] || err "an unknown review mode must exit 3"
+
 # ── reopen ledger ────────────────────────────────────────────────────────
 
 # reopened_repo — tasks pending, specify reopened (closed R1, open R2 + R3)

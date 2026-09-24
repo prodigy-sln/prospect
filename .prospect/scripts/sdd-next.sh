@@ -183,11 +183,19 @@ if [ -z "$fragments" ]; then
   exit 3
 fi
 
-# The completion handoff depends on the project's review mode (CLAUDE.md
-# setting `review-mode: solo | team`; default team).
+# The completion handoff depends on the review mode: env
+# PROSPECT_REVIEW_MODE, else the CLAUDE.md setting
+# `review-mode: solo | team | harness`; default team.
 if [ "$phase" = "complete" ]; then
-  review_mode="$(grep -oE 'review-mode: *(solo|team)' "$ROOT/CLAUDE.md" 2>/dev/null | head -1 | sed 's/.*: *//')"
+  review_mode="${PROSPECT_REVIEW_MODE:-}"
+  if [ -z "$review_mode" ]; then
+    review_mode="$(grep -oE 'review-mode: *(solo|team|harness)' "$ROOT/CLAUDE.md" 2>/dev/null | head -1 | sed 's/.*: *//')"
+  fi
   review_mode="${review_mode:-team}"
+  case "$review_mode" in
+    solo|team|harness) ;;
+    *) echo "unknown review mode: $review_mode" >&2; exit 3 ;;
+  esac
   fragments="$fragments,shared/complete-$review_mode.md"
 fi
 

@@ -82,7 +82,9 @@ the reason); downgrade only with explicit user confirmation.
 - `spec-disposal: delete` — default; `archive` (+ `retention: [days]`,
   default 180) for regulated projects or strict branch protection.
 - `review-mode: team` — default; `solo` lets the complete phase merge
-  directly after validation PASS (single-maintainer projects).
+  directly after validation PASS (single-maintainer projects); `harness`
+  commits the cleanup and leaves the merge to an external orchestrator
+  (env `PROSPECT_REVIEW_MODE` overrides this setting).
 
 ## Standards
 
