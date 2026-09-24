@@ -93,14 +93,15 @@ has_unchecked_tasks() { grep -q '^- \[ \]' "$DIR/tasks.md" 2>/dev/null; }
 
 # The last verdict line decides: a line that opens with the label (bold,
 # heading, or list markup allowed: "**Verdict**: PASS", "Verdict: **PASS**")
-# and whose value is PASS itself, not merely a word later on the line.
+# and whose value is PASS itself, not merely a word later on the line. A
+# line that is exactly "**PASS**" / "**FAIL**" (or -ED) counts as one too.
 validation_pass() {
   awk '
-    { l = tolower($0) }
+    { l = tolower($0); sub(/\r$/, "", l) }
     l ~ /^[[:space:]>#*_-]*verdict[*_[:space:]]*:/ {
       v = l; sub(/^[^:]*:[*_[:space:]]*/, "", v); pass = (v ~ /^pass(ed)?([^a-z]|$)/)
     }
-    l ~ /^\*\*pass/ { pass = 1 }
+    l ~ /^[[:space:]]*\*\*(pass|passed|fail|failed)\*\*[[:space:]]*$/ { pass = (l ~ /pass/) }
     END { exit !pass }' "$DIR/validation-report.md" 2>/dev/null
 }
 

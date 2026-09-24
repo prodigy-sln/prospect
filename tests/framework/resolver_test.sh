@@ -157,14 +157,16 @@ t "verdict label forms: bold label, bold value, list and heading markup, CRLF"
 for body in 'verdict: PASS' '**Verdict**: PASS' '**Verdict:** PASS' 'Verdict: **PASS**' \
             '- **Verdict**: PASS — gate green' '## Verdict: PASS' '__Verdict__: PASS' \
             $'# Report\r\n\r\nverdict: PASS\r' $'Verdict: FAIL\n\nfixed\n\nverdict: PASS' \
-            'Verdict: PASSED'; do
+            'Verdict: PASSED' '**PASS**' $'verdict: FAIL\n\n**PASSED**\r'; do
   [ "$(verdict_phase "$body")" = complete ] || err "not PASS: $(printf '%q' "$body")"
 done
 
 t "verdict negatives: FAIL values, PASS only in prose, per-item verdicts, a later FAIL"
 for body in 'verdict: FAIL (not PASS)' '**Verdict**: FAIL' '**Verdict:** FAILED — rerun to PASS' \
             'The gate should PASS once fixed.' '- FR-1.1-S1 verdict: PASS' 'verdict: PASSABLE' \
-            $'verdict: PASS\n\npass 2\n\nverdict: FAIL' 'Verdicts: PASS on 3 of 4'; do
+            $'verdict: PASS\n\npass 2\n\nverdict: FAIL' 'Verdicts: PASS on 3 of 4' \
+            $'verdict: FAIL\n\n**Passed:** 118 tests' $'verdict: FAIL\n\n**Passing**: 3' \
+            $'**PASS**\n\nverdict: FAIL' $'verdict: PASS\n\n**FAIL**' '**PASS** with notes'; do
   [ "$(verdict_phase "$body")" = validate ] || err "treated as PASS: $(printf '%q' "$body")"
 done
 
