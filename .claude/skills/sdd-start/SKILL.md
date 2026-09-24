@@ -1,13 +1,19 @@
 ---
 name: sdd-start
 description: "Start work: classify work-type and rigor, create branch and spec folder, then hand off to the resolver"
-argument-hint: "[description or ISSUE-KEY]"
+argument-hint: "[description or ISSUE-KEY] [--work-type <t> --rigor <r>] [--branch-exists]"
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task, AskUserQuestion
 ---
 
 # Start
 
 Take a request from description to a resolvable spec folder.
+
+Arguments: `--work-type <t> --rigor <r>` given together fix the
+classification — skip Step 1's question and use them as given.
+`--branch-exists` means the caller already created and checked out the
+branch — use the current one (`git branch --show-current`) instead of
+creating one.
 
 ## Step 1: Classify
 
@@ -26,23 +32,27 @@ Rigor also caps the spec's scenario budget (15 · 40 · 70 · 110 · 160), so
 the size of the behavior surface is a legitimate reason to pick a higher
 tier.
 
-Record both in the spec frontmatter. Escalate later when new risk appears
-(record the reason); downgrade only with explicit user confirmation.
+Escalate later when new risk appears (record the reason); downgrade only
+with explicit user confirmation.
 
 ## Step 2: Branch & Folder
 
 Branch `[type]/YYYY-MM-DD-short-name` (issue-driven:
 `[type]/KEY-123-short-name`), where `[type]` is `feature`, `bugfix`, or
-`chore` (docs and decision work use `feature/`). Create
-`specs/active/YYYY-MM-DD-short-name/` containing:
+`chore` (docs and decision work use `feature/`). Create it unless
+`--branch-exists`. Then create the folder:
 
-- `spec.md` — frontmatter only for now (id, title, status: active,
-  work-type, rigor, branch, created) from the matching template in
-  `.prospect/templates/`
-- `requirements.md` with a `## Clarifications` ledger (`- [status] Q: … →
-  A: …`, status one of `resolved | open | assumed`), seeded from the issue
-  or conversation. `/sdd-clarify` fills it from the tracker when one is
-  connected.
+```
+bash .prospect/scripts/sdd-new.sh <short-name> --work-type <t> --rigor <r> \
+  --title "<title>" --branch <branch> [--goal "<goal>"]
+```
+
+It prints the folder name (exit 2: the folder exists — pick another name)
+and writes `spec.md` frontmatter plus `requirements.md` with the
+`## Clarifications` ledger (`- [status] Q: … → A: …`, status one of
+`resolved | open | assumed`). Seed the ledger from the issue or
+conversation; `/sdd-clarify` fills it from a connected tracker. For `docs`
+and `chore`, pass `--goal` — no specify phase writes one.
 
 ## Step 3: Hand off
 
