@@ -64,9 +64,10 @@ case "$wtype" in
   chore) prefix=chore ;;
   *) prefix=feature ;;
 esac
-# Caller text stays on one line: a line break in a frontmatter value would
-# inject keys, and one in the goal could forge a heading the resolver reads.
-one_line() { printf '%s' "$1" | tr '\r\n\t' '   ' | tr -s ' ' | sed 's/^ //; s/ $//'; }
+# Caller text stays on one line and never starts with "#": a line break in
+# a frontmatter value would inject keys, and a goal line that is a heading
+# could forge a stamp the resolver reads ("## Done").
+one_line() { printf '%s' "$1" | tr '\r\n\t' '   ' | tr -s ' ' | sed 's/^[#[:space:]]*//; s/ $//'; }
 title="$(one_line "$title")"
 branch="$(one_line "$branch")"
 goal="$(one_line "$goal")"

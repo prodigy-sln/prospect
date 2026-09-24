@@ -108,9 +108,13 @@ has_section_content() { # has_section_content <file> <heading> — section exist
 
 has_discussion() { grep -q '^## Discussion Findings' "$DIR/$1" 2>/dev/null; }
 
-# A completion heading stamped into spec.md, dated or bare
-# ("## Validation — 2026-01-03"); sdd-reopen marks it "(stale R<n>)".
-has_stamp() { grep -E "^## $1([[:space:]]|\$)" "$SPEC" | grep -qv '(stale '; }
+# A completion heading stamped into spec.md: bare, or followed by a
+# separator or date ("## Validation — 2026-01-03") — never a longer title
+# ("## Done criteria"). sdd-reopen matches the same pattern and marks the
+# heading "(stale R<n>)", which no longer counts.
+has_stamp() {
+  grep -E "^## $1([[:space:]]*\$|[[:space:]]+(—|–|-|:|\(|[0-9]))" "$SPEC" | grep -qv '(stale '
+}
 
 # ── Phase detection ───────────────────────────────────────────────────────
 # Precedence: --phase override, then the first open reopen-ledger entry,

@@ -202,6 +202,16 @@ make_spec "$R" 2026-01-01-aa chore low 2026-01-02
 printf '\n## Done 2026-01-03 gate green\n' >> "$R/specs/active/2026-01-01-aa/spec.md"
 resolve "$R" 2026-01-01-aa --explain | grep -q "^phase: complete" || err "dated Done not honored"
 
+t "ordinary headings that start with a stamp word are not stamps"
+for pair in 'chore:## Done criteria:work' 'docs:## Published docs:edit' 'fix:## Validation Plan:implement'; do
+  wt="${pair%%:*}"; rest="${pair#*:}"; head="${rest%:*}"; want="${rest##*:}"
+  R="$(make_repo)"
+  make_spec "$R" 2026-01-01-aa "$wt" low 2026-01-02
+  printf '\n%s\n' "$head" >> "$R/specs/active/2026-01-01-aa/spec.md"
+  OUT="$(resolve "$R" 2026-01-01-aa --explain)"
+  echo "$OUT" | grep -q "^phase: $want" || err "'$head' ($wt) resolved to: $(echo "$OUT" | grep '^phase:')"
+done
+
 t "docs: resolves to edit"
 R="$(make_repo)"
 make_spec "$R" 2026-01-01-aa docs low 2026-01-02

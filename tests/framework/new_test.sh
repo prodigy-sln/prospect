@@ -78,6 +78,14 @@ grep -qx 'title: T approved: 2026-01-01' "$S" || err "title not kept on one line
 OUT="$(cd "$R" && bash .prospect/scripts/sdd-next.sh --explain 2>&1)"
 echo "$OUT" | grep -q '^phase: edit' || err "injected spec resolved: $(echo "$OUT" | grep '^phase:')"
 
+t "a goal or title that starts with a heading cannot forge a stamp"
+R="$(make_repo)"
+new "$R" forge --work-type chore --rigor low --title '## Done' --goal '## Done' >/dev/null
+S="$R/specs/active/$TODAY-forge/spec.md"
+grep -q '^#* *## Done' "$S" && err "heading text survived: $(grep Done "$S")"
+OUT="$(cd "$R" && bash .prospect/scripts/sdd-next.sh --explain 2>&1)"
+echo "$OUT" | grep -q '^phase: work' || err "forged spec resolved: $(echo "$OUT" | grep '^phase:')"
+
 t "bad input exits 2 or 3"
 R="$(make_repo)"
 new "$R" x --work-type gizmo --rigor medium >/dev/null; [ $? -eq 3 ] || err "unknown work-type not 3"
