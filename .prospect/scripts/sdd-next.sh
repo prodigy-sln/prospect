@@ -20,7 +20,9 @@ auto=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
-    --phase) phase_override="${2:-}"; shift 2 ;;
+    --phase)
+      [ $# -ge 2 ] || { echo "--phase requires a phase name" >&2; exit 2; }
+      phase_override="$2"; shift 2 ;;
     --explain) explain=1; shift ;;
     --auto) auto=1; shift ;;
     -*) echo "unknown option: $1" >&2; exit 2 ;;
@@ -135,8 +137,11 @@ else
       # test-map.md is the fix path's "implement has run" probe: the implement
       # fragment writes it with the regression mapping before any code changes.
       if [ -z "$approved" ]; then phase=specify
-      elif validation_pass || grep -q '^## Validation' "$SPEC"; then phase=complete
-      elif [ "$rigor" = low ]; then phase=implement
+      elif validation_pass; then phase=complete
+      elif [ "$rigor" = low ]; then
+        # Only the low path closes itself by stamping the spec; at medium+
+        # the validate phase owns the verdict.
+        if grep -q '^## Validation' "$SPEC"; then phase=complete; else phase=implement; fi
       elif ! has_file test-map.md; then phase=implement
       else phase=validate
       fi

@@ -37,6 +37,13 @@ budget 1000 standards/global/code-quality.md standards/global/architecture-princ
 while IFS=$'\t' read -r wtype rigors phase fragments; do
   case "$wtype" in \#*|'') continue ;; esac
   total=0
+  # The resolver appends fragments the matrix row does not name: the review
+  # mode on every complete phase, and the autonomy addendum under --auto.
+  # Charge the worst case, which is what a phase can actually pay.
+  case "$phase" in
+    complete) fragments="$fragments,shared/complete-team.md,shared/autonomy.md" ;;
+    *) fragments="$fragments,shared/autonomy.md" ;;
+  esac
   IFS=',' read -ra FR <<< "$fragments"
   for frag in "${FR[@]}"; do
     f=".prospect/prompts/$frag"

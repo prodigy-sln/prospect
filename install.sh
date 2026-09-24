@@ -111,8 +111,10 @@ download_release() {
   local dest_dir="$2"
 
   local url="${PROSPECT_REPO_URL}/releases/download/${version}/prospect-${version}.tar.gz"
+  # Plain mktemp only — --suffix is GNU coreutils and absent on macOS/BSD,
+  # and tar reads the archive by content, not by name.
   local tmp_tarball
-  tmp_tarball="$(mktemp --suffix=".tar.gz")"
+  tmp_tarball="$(mktemp)"
 
   # Ensure the temp file is removed on any exit from this function.
   # shellcheck disable=SC2064
@@ -345,7 +347,7 @@ install_files() {
       # Check if any files would change.
       local any_diff=0
       while IFS= read -r -d '' src_file; do
-        local rel_path="${src_file#$source_dir/}"
+        local rel_path="${src_file#"$source_dir"/}"
         [[ "$(basename "$rel_path")" == ".gitkeep" ]] && continue
         local category
         category="$(classify_file "$rel_path")"
@@ -385,7 +387,7 @@ install_files() {
 
   # Walk source_dir for all files.
   while IFS= read -r -d '' src_file; do
-    local rel_path="${src_file#$source_dir/}"
+    local rel_path="${src_file#"$source_dir"/}"
 
     # Skip .gitkeep files (used only to preserve empty dirs in artifacts).
     [[ "$(basename "$rel_path")" == ".gitkeep" ]] && continue
@@ -540,7 +542,15 @@ propose_merge() {
 
   if command -v claude > /dev/null 2>&1 && _is_interactive; then
     if _ask_yes_no "  Run Claude Code now to merge the incoming changes? [y/N] "; then
-      ( cd "$target_dir" && claude "$prompt" )
+      # stdin is the install pipe under `curl … | bash` and already at EOF;
+      # hand Claude Code the terminal whenever there is one to hand over.
+      # `-r` only reads permission bits; only an actual open proves the
+      # terminal is there.
+      if { : < /dev/tty; } 2>/dev/null; then
+        ( cd "$target_dir" && claude "$prompt" < /dev/tty )
+      else
+        ( cd "$target_dir" && claude "$prompt" )
+      fi
       return 0
     fi
   fi

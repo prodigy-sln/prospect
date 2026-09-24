@@ -1,0 +1,32 @@
+name: CI
+
+# The release workflow runs on a tag, which is too late to learn a test
+# broke. Everything that gates a release also runs on the way in.
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+
+jobs:
+  test:
+    name: Lint and test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Framework lint
+        # word budgets, forbidden references, frontmatter, path existence
+        run: bash tests/framework/lint.sh
+
+      - name: Bash suite
+        # every tests/**/*_test.sh: resolver, artifact budgets, installer,
+        # release artifact, e2e install/update, cross-platform parity
+        run: bash tests/run.sh
+
+      - name: PowerShell suite
+        shell: pwsh
+        run: |
+          ./tests/pwsh/args_test.ps1
+          ./tests/pwsh/install_test.ps1

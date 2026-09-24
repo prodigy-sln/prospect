@@ -1,4 +1,4 @@
-## Phase: Implement (fix)
+## Phase: Implement (fix · low — inline TDD)
 
 1. **RED**: write one failing regression test per regression scenario,
    record the mapping in `test-map.md`, run them and **display the failing
@@ -10,5 +10,7 @@
    Commit `fix: [defect]`.
 3. **Gate**: run `scripts/sdd-gate.*` to exit 0 — the full suite proves no
    collateral breakage. Fix exactly what it reports.
+4. Append to `spec.md`: `## Validation` with the date and gate result.
+   That stamp is this path's verdict — there is no separate validate phase.
 
 Then run `bash .prospect/scripts/sdd-next.sh ${NAME}` and continue.
