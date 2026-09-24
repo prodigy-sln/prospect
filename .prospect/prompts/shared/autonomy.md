@@ -23,7 +23,9 @@ options:
 status: open
 ```
 
-Whoever answers sets `status: resolved` and adds `answer: <text>`.
+Whoever answers sets `status: resolved` and adds `answer: <text>`. A
+halt-and-ask (an agent's `open-questions.md`) is a STOP too: one
+`kind: clarification` block per question.
 
 Hard rules, no policy can override them: never proceed past a red gate;
 never skip the validate phase; never raise rigor, add scenarios past the

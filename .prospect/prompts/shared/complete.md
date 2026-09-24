@@ -21,7 +21,9 @@ CLAUDE.md (`spec-disposal: delete | archive` + `retention`).
    after step 4, not before it; red = stop.
 6. Remaining Minor/Info findings → one tracked issue each (or a PR-body
    list without a tracker).
-7. Archive mode: `git mv` the folder to `specs/archive/YYYY/` in the publish
-   commit and prune archive folders older than the retention setting.
+7. Commit the publish, including the `metrics.md` line the resolver
+   stamped for this phase. Archive mode: `git mv` the folder to
+   `specs/archive/YYYY/` in that commit and prune archive folders older
+   than the retention setting.
 
 Then hand off per the review mode below.
