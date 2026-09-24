@@ -144,6 +144,30 @@ printf 'Verdict: FAILED - two Blockers; re-run to reach PASS
 OUT="$(resolve "$R")"
 echo "$OUT" | grep -q "^phase: validate" || err "a FAILED report resolved to: $(echo "$OUT" | grep '^phase:')"
 
+# verdict_phase <report-body> — the phase a ticked feature resolves to
+verdict_phase() {
+  local r; r="$(make_repo)"
+  make_spec "$r" 2026-01-01-aa feature medium 2026-01-02
+  printf -- '- [x] T01 done\n' > "$r/specs/active/2026-01-01-aa/tasks.md"
+  printf '%s\n' "$1" > "$r/specs/active/2026-01-01-aa/validation-report.md"
+  resolve "$r" 2026-01-01-aa --explain | sed -n 's/^phase: //p'
+}
+
+t "verdict label forms: bold label, bold value, list and heading markup, CRLF"
+for body in 'verdict: PASS' '**Verdict**: PASS' '**Verdict:** PASS' 'Verdict: **PASS**' \
+            '- **Verdict**: PASS — gate green' '## Verdict: PASS' '__Verdict__: PASS' \
+            $'# Report\r\n\r\nverdict: PASS\r' $'Verdict: FAIL\n\nfixed\n\nverdict: PASS' \
+            'Verdict: PASSED'; do
+  [ "$(verdict_phase "$body")" = complete ] || err "not PASS: $(printf '%q' "$body")"
+done
+
+t "verdict negatives: FAIL values, PASS only in prose, per-item verdicts, a later FAIL"
+for body in 'verdict: FAIL (not PASS)' '**Verdict**: FAIL' '**Verdict:** FAILED — rerun to PASS' \
+            'The gate should PASS once fixed.' '- FR-1.1-S1 verdict: PASS' 'verdict: PASSABLE' \
+            $'verdict: PASS\n\npass 2\n\nverdict: FAIL' 'Verdicts: PASS on 3 of 4'; do
+  [ "$(verdict_phase "$body")" = validate ] || err "treated as PASS: $(printf '%q' "$body")"
+done
+
 # ── other work types ─────────────────────────────────────────────────────
 
 t "fix: existing spec resolves straight to implement (no tasks phase)"

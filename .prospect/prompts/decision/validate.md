@@ -9,9 +9,10 @@
    `test-map.md` when checks were built); no decision contradicts the
    discussion's agreed findings or the standing architecture doc; every
    deadlock carries a user ruling.
-3. **Verdict**: PASS = gate green AND zero Blockers and Majors. Write
+3. **Outcome**: PASS = gate green AND zero Blockers and Majors. Write
    `${FOLDER}/validation-report.md` (≤120 lines): per-question verdicts,
-   findings with citations, gate output, metrics summary, verdict. Fix
-   Blockers/Majors; re-run the gate and re-verify the fixes only.
+   findings with citations, gate output, metrics summary; last line exactly
+   `verdict: PASS` or `verdict: FAIL`. Fix Blockers/Majors; re-run the gate
+   and re-verify the fixes only.
 
 Then run `bash .prospect/scripts/sdd-next.sh ${NAME}` and continue.

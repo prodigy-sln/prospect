@@ -91,8 +91,18 @@ has_file() { [ -f "$DIR/$1" ]; }
 
 has_unchecked_tasks() { grep -q '^- \[ \]' "$DIR/tasks.md" 2>/dev/null; }
 
-# PASS must be the verdict's own value, not merely a word on the line.
-validation_pass() { grep -qiE 'verdict:[^A-Za-z]*(\*\*)?PASS|^\*\*PASS' "$DIR/validation-report.md" 2>/dev/null; }
+# The last verdict line decides: a line that opens with the label (bold,
+# heading, or list markup allowed: "**Verdict**: PASS", "Verdict: **PASS**")
+# and whose value is PASS itself, not merely a word later on the line.
+validation_pass() {
+  awk '
+    { l = tolower($0) }
+    l ~ /^[[:space:]>#*_-]*verdict[*_[:space:]]*:/ {
+      v = l; sub(/^[^:]*:[*_[:space:]]*/, "", v); pass = (v ~ /^pass(ed)?([^a-z]|$)/)
+    }
+    l ~ /^\*\*pass/ { pass = 1 }
+    END { exit !pass }' "$DIR/validation-report.md" 2>/dev/null
+}
 
 has_section_content() { # has_section_content <file> <heading> — section exists, non-empty, not "none"
   awk -v h="$2" '

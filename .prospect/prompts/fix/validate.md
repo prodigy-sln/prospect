@@ -7,8 +7,9 @@
    addresses the recorded root cause (not the symptom); every regression
    scenario has a test that fails without the fix; the diff contains
    nothing beyond the fix and its tests.
-3. **Verdict**: PASS = gate green AND zero Blockers and Majors. Write
-   `${FOLDER}/validation-report.md` (≤60 lines). Fix findings; re-run the
+3. **Outcome**: PASS = gate green AND zero Blockers and Majors. Write
+   `${FOLDER}/validation-report.md` (≤60 lines), last line exactly
+   `verdict: PASS` or `verdict: FAIL`. Fix findings; re-run the
    gate and re-verify the fixes only.
 
 Then run `bash .prospect/scripts/sdd-next.sh ${NAME}` and continue.
