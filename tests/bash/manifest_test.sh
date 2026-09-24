@@ -79,6 +79,10 @@ test_classify_framework_files() {
     ".prospect/templates/spec.template.md"
     ".prospect/prompts/matrix.tsv"
     ".prospect/scripts/sdd-next.sh"
+    ".prospect/scripts/sdd-reopen.sh"
+    ".prospect/scripts/sdd-new.sh"
+    ".prospect/prompts/shared/reopen.md"
+    ".prospect/autonomy-harness.md"
   )
 
   for path in "${paths[@]}"; do

@@ -70,7 +70,7 @@ the reason); downgrade only with explicit user confirmation.
 ## Locations
 
 - Active specs: `specs/active/YYYY-MM-DD-name/` (spec, requirements ledger,
-  test-map, metrics, decisions)
+  test-map, metrics, decisions, `reopen.md` ledger from `sdd-reopen.sh`)
 - Registry: `specs/REGISTRY.md` — one line ≤50 words per completed spec
 - Framework runtime: `.prospect/` (resolver, prompts, templates, autonomy
   policy) — framework-owned, overwritten on update; do not edit in projects
